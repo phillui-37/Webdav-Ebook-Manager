@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.dav4jvm)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.activity.ktx)
 
     testImplementation(libs.junit)
 

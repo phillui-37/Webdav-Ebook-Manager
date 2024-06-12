@@ -15,6 +15,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.CoroutineScope
 import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
+import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 
 @Composable
 fun NaviGraph(
@@ -34,8 +35,10 @@ fun NaviGraph(
         modifier = modifier,
     ) {
         composable(Screens.HOME) { entry ->
-            // TODO
-//            AppModalDrawer()
+            AppModalDrawer(drawerState, currentRoute, naviActions) {
+                HomeScreen(modifier = modifier)
+            }
         }
+
     }
 }
