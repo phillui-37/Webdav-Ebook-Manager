@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Webdav電子書管理器</string>
+    <string name="btn_drawer_desc">打開菜單</string>
+    <string name="screen_home_title">主頁</string>
+    <string name="screen_setting_title">設定</string>
+</resources>

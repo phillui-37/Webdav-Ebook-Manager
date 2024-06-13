@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 val properties = Properties()
@@ -37,11 +39,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_19
-        targetCompatibility = JavaVersion.VERSION_19
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "19"
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
@@ -69,6 +71,14 @@ dependencies {
     implementation(libs.dav4jvm)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.room.rt)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.hilt)
+    ksp(libs.hilt.compiler)
+    implementation(libs.arrow.core)
+    implementation(libs.arrow.fx.coroutines)
+    ksp(libs.arrow.optics.ksp.plugin)
 
     testImplementation(libs.junit)
 
