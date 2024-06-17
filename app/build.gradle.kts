@@ -72,6 +72,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.room.rt)
+    implementation(libs.androidx.appcompat.resources)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
     implementation(libs.hilt)
@@ -79,6 +80,9 @@ dependencies {
     implementation(libs.arrow.core)
     implementation(libs.arrow.fx.coroutines)
     ksp(libs.arrow.optics.ksp.plugin)
+    implementation(libs.accompanist.drawablepainter) // for drawable to painter
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.runtime.livedata)
 
     testImplementation(libs.junit)
 

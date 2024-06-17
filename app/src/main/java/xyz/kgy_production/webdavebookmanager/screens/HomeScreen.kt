@@ -1,5 +1,7 @@
 package xyz.kgy_production.webdavebookmanager.screens
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,15 +25,14 @@ fun HomeScreen(
             HomeTopBar(
                 title = stringResource(id = R.string.screen_home_title),
                 openDrawer = openDrawer,
-                onFilterSites = {/*TODO*/}
-            ) {
-                // TODO
-            }
+                onFilterSites = {/*TODO*/},
+                onRefresh = {/*TODO*/}
+            )
         }
     ) { padding ->
         Greeting(
             name = "Fuck you",
-            modifier = modifier
+            modifier = modifier.padding(padding)
         )
     }
 }
@@ -47,7 +48,7 @@ private fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    WebdavEbookManagerTheme {
+    WebdavEbookManagerTheme(isSystemInDarkTheme()) {
         Greeting("Android")
     }
 }

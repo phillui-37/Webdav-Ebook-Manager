@@ -3,4 +3,9 @@
     <string name="screen_home_title">Home</string>
     <string name="btn_drawer_desc">Open Drawer</string>
     <string name="screen_setting_title">Setting</string>
+    <string name="drawer_header_title">Drawer Header</string>
+    <string name="std_refresh_content">Refresh Content</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_auto">System</string>
 </resources>

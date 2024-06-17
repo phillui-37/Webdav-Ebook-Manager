@@ -14,12 +14,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
+import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
 
 @Composable
 fun NaviGraph(
+    themeViewModel: ThemeViewModel,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
@@ -38,14 +41,21 @@ fun NaviGraph(
         composable(Screens.HOME) { 
             AppModalDrawer(drawerState, currentRoute, naviActions) {
                 HomeScreen(
-                    modifier = modifier,
-                    openDrawer = {}
+                    openDrawer = {
+                        coroutineScope.launch { drawerState.open() }
+                    }
                 )
             }
         }
         composable(Screens.SETTING) { 
             AppModalDrawer(drawerState, currentRoute, naviActions) {
-                SettingScreen(modifier = modifier)
+                SettingScreen(
+                    themeViewModel = themeViewModel,
+                    coroutineScope = coroutineScope,
+                    openDrawer = {
+                        coroutineScope.launch { drawerState.open() }
+                    }
+                )
             }
         }
     }

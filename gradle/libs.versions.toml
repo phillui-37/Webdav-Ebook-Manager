@@ -1,6 +1,8 @@
 [versions]
+accompanistDrawablepainter = "0.32.0"
 agp = "8.4.2"
 arrow = "1.2.4"
+datastorePreferences = "1.1.1"
 dav4jvm = "2.2.1"
 kotlin = "2.0.0"
 coreKtx = "1.13.1"
@@ -15,9 +17,13 @@ activityKtx = "1.9.0"
 room = "2.6.1"
 ksp = "2.0.0-1.0.21"
 hilt = "2.51.1"
+appcompatResources = "1.7.0"
 
 [libraries]
+accompanist-drawablepainter = { module = "com.google.accompanist:accompanist-drawablepainter", version.ref = "accompanistDrawablepainter" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
+androidx-runtime-livedata = { module = "androidx.compose.runtime:runtime-livedata" }
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
 arrow-optics-ksp-plugin = { module = "io.arrow-kt:arrow-optics-ksp-plugin", version.ref = "arrow" }
@@ -42,6 +48,7 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 hilt = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+androidx-appcompat-resources = { group = "androidx.appcompat", name = "appcompat-resources", version.ref = "appcompatResources" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

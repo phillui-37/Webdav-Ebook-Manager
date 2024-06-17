@@ -4,4 +4,9 @@
     <string name="btn_drawer_desc">打開菜單</string>
     <string name="screen_home_title">主頁</string>
     <string name="screen_setting_title">設定</string>
+    <string name="drawer_header_title">菜單頂端</string>
+    <string name="std_refresh_content">刷新內容</string>
+    <string name="theme_mode_dark">黑暗</string>
+    <string name="theme_mode_light">明亮</string>
+    <string name="theme_mode_auto">系統</string>
 </resources>

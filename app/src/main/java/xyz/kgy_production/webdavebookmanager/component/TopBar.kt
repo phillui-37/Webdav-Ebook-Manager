@@ -48,7 +48,7 @@ fun HomeTaskMenu(onFilterSites: (String) -> Unit) {
 @Composable
 fun RefreshButton(onRefresh: () -> Unit) {
     IconButton(onClick = onRefresh) {
-        Icon(Icons.Filled.Refresh, "Refresh content")
+        Icon(Icons.Filled.Refresh, stringResource(id = R.string.std_refresh_content))
     }
 }
 

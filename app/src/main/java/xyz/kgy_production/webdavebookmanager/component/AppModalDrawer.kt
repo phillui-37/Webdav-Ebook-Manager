@@ -1,12 +1,18 @@
 package xyz.kgy_production.webdavebookmanager.component
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -21,8 +27,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -33,6 +40,9 @@ import xyz.kgy_production.webdavebookmanager.NaviActions
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.Screens
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
+import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
+import xyz.kgy_production.webdavebookmanager.util.getPainterFromDrawable
+import xyz.kgy_production.webdavebookmanager.util.primaryDarkColor
 
 @Composable
 fun AppModalDrawer(
@@ -52,9 +62,7 @@ fun AppModalDrawer(
                 closeDrawer = { coroutineScope.launch { drawerState.close() } }
             )
         }
-    ) {
-        content()
-    }
+    ) { content() }
 }
 
 @Composable
@@ -65,10 +73,14 @@ private fun AppDrawer(
     closeDrawer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth(0.5F)
+            .fillMaxHeight()
+    ) {
         DrawerHeader()
         DrawerButton(
-            painter = painterResource(id = android.R.drawable.btn_default),
+            painter = getPainterFromDrawable(android.R.drawable.btn_star),
             label = stringResource(id = R.string.screen_home_title),
             isSelected = currentRoute == Screens.HOME,
             action = {
@@ -77,7 +89,7 @@ private fun AppDrawer(
             }
         )
         DrawerButton(
-            painter = painterResource(id = android.R.drawable.btn_dropdown),
+            painter = getPainterFromDrawable(android.R.drawable.btn_plus),
             label = stringResource(id = R.string.screen_setting_title),
             isSelected = currentRoute == Screens.SETTING,
             action = {
@@ -97,13 +109,17 @@ private fun DrawerHeader(
         verticalArrangement = Arrangement.Center,
         modifier = modifier
             .fillMaxWidth()
+            .background(primaryDarkColor)
+            .height(192.dp)
+            .padding(16.dp)
     ) {
         Image(
-            painter = painterResource(id = android.R.drawable.btn_star),
-            contentDescription = "Header" /*TODO*/,
+            painter = getPainterFromDrawable(android.R.drawable.btn_star),
+            contentDescription = stringResource(id = R.string.drawer_header_title),
+            modifier = Modifier.width(100.dp)
         )
         Text(
-            text = "Header",
+            text = stringResource(id = R.string.drawer_header_title),
             color = MaterialTheme.colorScheme.surface
         )
     }
@@ -127,6 +143,7 @@ private fun DrawerButton(
         onClick = action,
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
         Row(
             horizontalArrangement = Arrangement.Start,
@@ -153,14 +170,16 @@ private fun DrawerButton(
 @Composable
 fun AppModalDrawerPreview() {
     val navController = rememberNavController()
-    AppModalDrawer(
-        drawerState = rememberDrawerState(initialValue = DrawerValue.Open),
-        currentRoute = Screens.HOME,
-        naviActions = remember(navController) { NaviActions(navController) }
-    ) {
-        HomeScreen(
-            modifier = Modifier,
-            openDrawer = {}
-        )
+    WebdavEbookManagerTheme(isSystemInDarkTheme()) {
+        AppModalDrawer(
+            drawerState = rememberDrawerState(initialValue = DrawerValue.Open),
+            currentRoute = Screens.HOME,
+            naviActions = remember(navController) { NaviActions(navController) }
+        ) {
+            HomeScreen(
+                modifier = Modifier,
+                openDrawer = {}
+            )
+        }
     }
 }
