@@ -65,6 +65,9 @@ fun SettingScreen(
                 .wrapContentHeight()
         ) {
             item {
+                Text(text = "Theme Setting")
+            }
+            item {
                 Row(
                     modifier = Modifier.fillParentMaxWidth()
                 ) {

@@ -47,12 +47,9 @@ class MainActivity : ComponentActivity() {
                     it == ThemeOption.DARK.name || (it == ThemeOption.AUTO.name && isSystemInDarkTheme())
                 } ?: isSystemInDarkTheme()
             )
-            themeViewModel.isDark.observe(this) {
-                Log.d("isDark", it.toString())
-            }
             themeViewModel.themeMode.observe(this) {
-                Log.d("themeMode", it.name)
-                themeViewModel.isDark.value = if (it == ThemeOption.AUTO) isSystemDarkMode() else it == ThemeOption.DARK
+                themeViewModel.isDark.value =
+                    if (it == ThemeOption.AUTO) isSystemDarkMode() else it == ThemeOption.DARK
             }
             WebdavEbookManagerTheme(
                 isDarkTheme = isDarkState.value
