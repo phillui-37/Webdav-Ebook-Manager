@@ -18,11 +18,12 @@ import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
+import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
 import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
 
 @Composable
 fun NaviGraph(
-    themeViewModel: ThemeViewModel,
+    updateThemeSetting :FnUpdateThemeSetting,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
@@ -50,7 +51,7 @@ fun NaviGraph(
         composable(Screens.SETTING) { 
             AppModalDrawer(drawerState, currentRoute, naviActions) {
                 SettingScreen(
-                    themeViewModel = themeViewModel,
+                    updateThemeSetting = updateThemeSetting,
                     coroutineScope = coroutineScope,
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }

@@ -8,4 +8,5 @@
     <string name="theme_mode_dark">Dark</string>
     <string name="theme_mode_light">Light</string>
     <string name="theme_mode_auto">System</string>
+    <string name="setting_theme_setting_title">Theme Setting</string>
 </resources>
