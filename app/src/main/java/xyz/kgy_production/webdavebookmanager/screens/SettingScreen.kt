@@ -11,14 +11,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.SettingTopBar
+import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.ThemeOption
 import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
 import xyz.kgy_production.webdavebookmanager.viewmodel.SettingViewModel
@@ -26,8 +26,9 @@ import xyz.kgy_production.webdavebookmanager.viewmodel.SettingViewModel
 
 @Composable
 fun SettingScreen(
+    isDarkTheme: Boolean,
     openDrawer: () -> Unit,
-    updateThemeSetting :FnUpdateThemeSetting,
+    updateThemeSetting: FnUpdateThemeSetting,
     coroutineScope: CoroutineScope,
     modifier: Modifier = Modifier,
     viewModel: ViewModel = SettingViewModel()
@@ -36,15 +37,18 @@ fun SettingScreen(
         topBar = {
             SettingTopBar(
                 title = stringResource(id = R.string.screen_setting_title),
+                isDarkTheme = isDarkTheme,
                 openDrawer = openDrawer
             )
-        }
+        },
     ) { padding ->
         LazyColumn(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(padding)
                 .wrapContentHeight()
+                .then(INTERNAL_VERTICAL_PADDING_MODIFIER)
+                .then(INTERNAL_HORIZONTAL_PADDING_MODIFIER)
         ) {
             item {
                 Column(modifier = Modifier.fillParentMaxWidth()) {

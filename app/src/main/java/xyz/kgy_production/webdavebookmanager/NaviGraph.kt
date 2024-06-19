@@ -23,7 +23,8 @@ import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
 
 @Composable
 fun NaviGraph(
-    updateThemeSetting :FnUpdateThemeSetting,
+    updateThemeSetting: FnUpdateThemeSetting,
+    isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
@@ -39,20 +40,22 @@ fun NaviGraph(
         startDestination = startDestination,
         modifier = modifier,
     ) {
-        composable(Screens.HOME) { 
-            AppModalDrawer(drawerState, currentRoute, naviActions) {
+        composable(Screens.HOME) {
+            AppModalDrawer(drawerState, currentRoute, naviActions, isDarkTheme) {
                 HomeScreen(
+                    isDarkTheme = isDarkTheme,
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }
                     }
                 )
             }
         }
-        composable(Screens.SETTING) { 
-            AppModalDrawer(drawerState, currentRoute, naviActions) {
+        composable(Screens.SETTING) {
+            AppModalDrawer(drawerState, currentRoute, naviActions, isDarkTheme) {
                 SettingScreen(
                     updateThemeSetting = updateThemeSetting,
                     coroutineScope = coroutineScope,
+                    isDarkTheme = isDarkTheme,
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }
                     }

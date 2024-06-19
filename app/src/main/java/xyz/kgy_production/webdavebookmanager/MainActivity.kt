@@ -11,6 +11,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import arrow.core.valid
@@ -32,6 +33,7 @@ import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val themeViewModel by viewModels<ThemeViewModel>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -44,6 +46,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 NaviGraph(
                     modifier = Modifier.padding(),
+                    isDarkTheme = isDarkState.value,
                     updateThemeSetting = { opt ->
                         themeViewModel.updateThemeSetting(opt, dataStore)
                     }

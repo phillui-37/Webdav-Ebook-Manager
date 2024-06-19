@@ -11,11 +11,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModel
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.HomeTopBar
+import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
 import xyz.kgy_production.webdavebookmanager.viewmodel.HomeViewModel
 
 @Composable
 fun HomeScreen(
+    isDarkTheme: Boolean,
     openDrawer: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ViewModel = HomeViewModel()
@@ -24,15 +27,18 @@ fun HomeScreen(
         topBar = {
             HomeTopBar(
                 title = stringResource(id = R.string.screen_home_title),
+                isDarkTheme = isDarkTheme,
                 openDrawer = openDrawer,
                 onFilterSites = {/*TODO*/},
                 onRefresh = {/*TODO*/}
             )
-        }
+        },
     ) { padding ->
         Greeting(
-            name = "Fuck you",
+            name = "Hi",
             modifier = modifier.padding(padding)
+                .then(INTERNAL_HORIZONTAL_PADDING_MODIFIER)
+                .then(INTERNAL_VERTICAL_PADDING_MODIFIER)
         )
     }
 }

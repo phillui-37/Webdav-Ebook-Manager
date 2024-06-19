@@ -1,6 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.component
 
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
@@ -10,17 +10,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import xyz.kgy_production.webdavebookmanager.R
-
+import xyz.kgy_production.webdavebookmanager.ui.theme.TOP_BAR_DARK_MODIFIER
+import xyz.kgy_production.webdavebookmanager.ui.theme.TOP_BAR_WHITE_MODIFIER
 
 /** Home */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeTopBar(
     title: String,
+    isDarkTheme: Boolean,
     openDrawer: () -> Unit,
     onFilterSites: (String) -> Unit,
     onRefresh: () -> Unit,
@@ -32,7 +33,7 @@ fun HomeTopBar(
                 Icon(Icons.Filled.Menu, stringResource(id = R.string.btn_drawer_desc))
             }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER,
         actions = {
             HomeTaskMenu(onFilterSites = onFilterSites)
             RefreshButton(onRefresh = onRefresh)
@@ -57,6 +58,7 @@ fun RefreshButton(onRefresh: () -> Unit) {
 @Composable
 fun SettingTopBar(
     title: String,
+    isDarkTheme: Boolean,
     openDrawer: () -> Unit
 ) {
     TopAppBar(
@@ -66,7 +68,7 @@ fun SettingTopBar(
                 Icon(Icons.Filled.Menu, stringResource(id = R.string.btn_drawer_desc))
             }
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER
     )
 }
 
@@ -76,6 +78,7 @@ fun SettingTopBar(
 private fun HomeTopBarPreview() {
     HomeTopBar(
         title = stringResource(id = R.string.screen_home_title),
+        isDarkTheme = isSystemInDarkTheme(),
         openDrawer = {},
         onFilterSites = {},
         onRefresh = {}
@@ -87,6 +90,7 @@ private fun HomeTopBarPreview() {
 private fun SettingTopBarPreview() {
     SettingTopBar(
         title = stringResource(id = R.string.screen_setting_title),
+        isDarkTheme = isSystemInDarkTheme(),
         openDrawer = {}
     )
 }
