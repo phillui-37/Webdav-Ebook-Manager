@@ -1,14 +1,16 @@
 package xyz.kgy_production.webdavebookmanager.data
 
+import arrow.core.Option
+import arrow.core.getOrElse
+import arrow.core.toOption
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
-import xyz.kgy_production.webdavebookmanager.di.ApplicationScope
 import xyz.kgy_production.webdavebookmanager.di.DefaultDispatcher
 import xyz.kgy_production.webdavebookmanager.util.encrypt
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,26 +26,37 @@ class DefaultWebDavRepository @Inject constructor(
         }
     }
 
-    override suspend fun getEntryById(id: Int): WebDavModel? {
+    override suspend fun getEntryById(id: Int): Option<WebDavModel> {
         return withContext(dispatcher) {
-            dbDAO.getById(id)?.toModel()
+            dbDAO.getById(id)?.toModel().toOption()
+        }
+    }
+
+    override suspend fun getEntryByUuid(uuid: String): Option<WebDavModel> {
+        return withContext(dispatcher) {
+            dbDAO.getByUuid(uuid)?.toModel().toOption()
         }
     }
 
     override suspend fun createEntry(
-        name: String?,
+        name: Option<String>,
         url: String,
-        loginId: String?,
-        password: String?
+        loginId: Option<String>,
+        password: Option<String>,
+        uuid: Option<String>,
     ) {
         withContext(dispatcher) {
+            var uuid = uuid.getOrElse { UUID.randomUUID().toString() }
+            while (getEntryByUuid(uuid).isSome())
+                uuid = UUID.randomUUID().toString()
             dbDAO.insert(
                 WebDavEntity(
-                    name = name ?: "",
+                    name = name.getOrElse { "" },
                     url = url,
-                    loginId = loginId?.encrypt() ?: "",
-                    password = password?.encrypt() ?: "",
-                    isActive = true
+                    loginId = loginId.map { it.encrypt() }.getOrElse { "" },
+                    password = password.map { it.encrypt() }.getOrElse { "" },
+                    isActive = true,
+                    uuid = uuid
                 )
             )
         }
@@ -57,21 +70,23 @@ class DefaultWebDavRepository @Inject constructor(
 
     override suspend fun updateEntry(
         id: Int,
-        name: String?,
+        name: Option<String>,
         url: String,
-        loginId: String?,
-        password: String?,
-        isActive: Boolean
+        loginId: Option<String>,
+        password: Option<String>,
+        isActive: Boolean,
+        uuid: String,
     ) {
         withContext(dispatcher) {
             dbDAO.upsert(
                 WebDavEntity(
                     id = id,
-                    name = name ?: "",
+                    name = name.getOrElse { "" },
                     url = url,
-                    loginId = loginId?.encrypt() ?: "",
-                    password = password?.encrypt() ?: "",
-                    isActive = isActive
+                    loginId = loginId.map { it.encrypt() }.getOrElse { "" },
+                    password = password.map { it.encrypt() }.getOrElse { "" },
+                    isActive = isActive,
+                    uuid = uuid
                 )
             )
         }

@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
+import arrow.core.Some
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.NaviActions
@@ -183,6 +184,8 @@ fun AppModalDrawerPreview() {
             HomeScreen(
                 modifier = Modifier,
                 isDarkTheme = isSystemInDarkTheme(),
+                toDirectoryScreen = { Some("") },
+                toEditWebDavScreen = { Some("") },
                 openDrawer = {}
             )
         }

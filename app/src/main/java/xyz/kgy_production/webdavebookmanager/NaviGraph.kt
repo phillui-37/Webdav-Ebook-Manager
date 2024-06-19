@@ -9,13 +9,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import arrow.core.getOrElse
+import arrow.core.toOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
+import xyz.kgy_production.webdavebookmanager.screens.EditWebDavEntryScreen
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
 import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
@@ -44,6 +49,12 @@ fun NaviGraph(
             AppModalDrawer(drawerState, currentRoute, naviActions, isDarkTheme) {
                 HomeScreen(
                     isDarkTheme = isDarkTheme,
+                    toEditWebDavScreen = {
+                        naviActions.navigateToAddWebdavEntry(it.getOrElse { "" })
+                    },
+                    toDirectoryScreen = {
+                        naviActions.navigateToDirectory(it.getOrElse { "" })
+                    },
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }
                     }
@@ -61,6 +72,18 @@ fun NaviGraph(
                     }
                 )
             }
+        }
+        composable(
+            Screens.EDIT_WEBDAV_ENTRY,
+            arguments = listOf(
+                navArgument(RouteArgs.EditWebDavEntry.UUID) { type = NavType.StringType; defaultValue = "" }
+            )
+        ) { entry ->
+            val uuid = entry.arguments?.getString(RouteArgs.EditWebDavEntry.UUID).toOption()
+            EditWebDavEntryScreen(
+                uuid = uuid,
+                onBack = navController::popBackStack
+            )
         }
     }
 }

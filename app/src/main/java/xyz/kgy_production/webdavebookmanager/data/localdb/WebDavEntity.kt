@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "webdav")
 data class WebDavEntity(
     @PrimaryKey(autoGenerate = true) @ColumnInfo(name = "rowid") val id: Int = 0,
+    @ColumnInfo(name = "uuid") val uuid: String,
     @ColumnInfo(name = "name") val name: String,
     @ColumnInfo(name = "url") val url: String,
     @ColumnInfo(name = "login_id") val loginId: String,

@@ -11,7 +11,8 @@ fun WebDavEntity.toModel() = WebDavModel(
     url = url,
     loginId = loginId.decrypt(),
     password = password.decrypt(),
-    isActive = isActive
+    isActive = isActive,
+    uuid = uuid,
 )
 
 fun WebDavModel.toEntity() = WebDavEntity(
@@ -20,5 +21,6 @@ fun WebDavModel.toEntity() = WebDavEntity(
     url = url,
     loginId = loginId.encrypt(),
     password = password.encrypt(),
-    isActive = isActive
+    isActive = isActive,
+    uuid = uuid,
 )

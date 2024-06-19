@@ -11,6 +11,15 @@ object Screens {
     const val EDIT_BOOK_METADATA = "edit book metadata" // TODO name,series w/ #,author,illustrator,tag,read status,md5(readonly),webdav folder path(readonly)
 }
 
+object RouteArgs {
+    object Directory {
+        const val PATH = "path"
+    }
+    object EditWebDavEntry {
+        const val UUID = "uuid"
+    }
+}
+
 class NaviActions(private val navHostController: NavHostController) {
     fun navigateToHome() {
         navHostController.navigate(Screens.HOME) {
