@@ -5,7 +5,9 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import arrow.core.Either
 import arrow.core.identity
+import java.security.Key
 import java.security.KeyStore
+import java.security.KeyStore.SecretKeyEntry
 import java.security.KeyStoreException
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -24,47 +26,34 @@ private val store by lazy {
 
 private val aesKey by lazy {
     createKeys(store)
-    store.getKey(KEY_ALIAS, null) as SecretKey
-}
-
-fun prepareCipher(key: ByteArray, iv: ByteArray, mode: Int): Cipher {
-    val cipher = Cipher.getInstance(ENCRYPTION_ALGO)
-    val secretKeySpec = SecretKeySpec(key, ENCRYPTION_ALGO.split("/")[0])
-    val ivParamSpec = IvParameterSpec(iv)
-    cipher.init(mode, secretKeySpec, ivParamSpec)
-    return cipher
+    (store.getEntry(KEY_ALIAS, null) as SecretKeyEntry).secretKey
 }
 
 fun encrypt(text: String): Either<Throwable, String> {
     if (text.isEmpty()) return Either.Left(RuntimeException("Empty String cannot be encrypted"))
 
     return Either.catch {
-        val iv = generateRandomIV()
-        val cipher = prepareCipher(aesKey.encoded, iv.toByteArray(), Cipher.ENCRYPT_MODE)
-        val digested = cipher.doFinal(text.toByteArray())
+        val cipher = Cipher.getInstance(ENCRYPTION_ALGO)
+        cipher.init(Cipher.ENCRYPT_MODE, aesKey)
+        val iv = Base64.encodeToString(cipher.iv, Base64.DEFAULT)
+        val digested = Base64.encodeToString(cipher.doFinal(text.toByteArray()), Base64.DEFAULT)
 
-        "$iv;${Base64.encodeToString(digested, Base64.DEFAULT)}"
+        "$iv;$digested"
     }
 }
 
 fun decrypt(text: String): Either<Throwable, String> {
     if (text.isEmpty()) return Either.Left(RuntimeException("Empty String cannot be decrypted"))
     if (!text.contains(";")) return Either.Left(RuntimeException("Invalid encrypted String"))
-    val (iv, content) = text.split(";")
+    val (iv, content) = text.split(";").map { Base64.decode(it, Base64.DEFAULT) }
 
     return Either.catch {
-        val bytes = Base64.decode(content.toByteArray(), Base64.DEFAULT)
-        val cipher = prepareCipher(aesKey.encoded, iv.toByteArray(), Cipher.DECRYPT_MODE)
-        val digested = cipher.doFinal(bytes)
+        val cipher = Cipher.getInstance(ENCRYPTION_ALGO)
+        cipher.init(Cipher.DECRYPT_MODE, aesKey, IvParameterSpec(iv))
+        val digested = cipher.doFinal(content)
 
         String(digested)
     }
-}
-
-fun generateRandomIV(): String {
-    val random = SecureRandom()
-    val generated = random.generateSeed(12)
-    return Base64.encodeToString(generated, Base64.DEFAULT)
 }
 
 fun createKeys(keyStore: KeyStore) {
@@ -79,8 +68,7 @@ fun createKeys(keyStore: KeyStore) {
 
             val keyGenParameter = keyGenParameterSpecBuilder
                 .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
-                .setRandomizedEncryptionRequired(false)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
                 .build()
 
             keyGenerator.init(keyGenParameter)

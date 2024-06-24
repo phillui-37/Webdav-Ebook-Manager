@@ -1,5 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.data
 
+import android.util.Log
 import arrow.core.Option
 import arrow.core.getOrElse
 import arrow.core.toOption
@@ -9,6 +10,7 @@ import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.di.DefaultDispatcher
+import xyz.kgy_production.webdavebookmanager.util.decrypt
 import xyz.kgy_production.webdavebookmanager.util.encrypt
 import java.util.UUID
 import javax.inject.Inject
@@ -53,16 +55,27 @@ class DefaultWebDavRepository @Inject constructor(
         loginId: Option<String>,
         password: Option<String>,
     ) {
+        Log.d(">>>", "$name;$url;$loginId;$password")
         withContext(dispatcher) {
             var uuid = UUID.randomUUID().toString()
             while (getEntryByUuid(uuid).isSome())
                 uuid = UUID.randomUUID().toString()
+            val _loginId = loginId.flatMap { it.encrypt() }
+                .onNone {
+                    Log.e("WebDavRepo::createEntry", "Encrypt fail")
+                }
+                .getOrElse { "" }
+            val _pwd = password.flatMap { it.encrypt() }
+                .onNone {
+                    Log.e("WebDavRepo::createEntry", "Encrypt fail")
+                }
+                .getOrElse { "" }
             dbDAO.insert(
                 WebDavEntity(
                     name = name.getOrElse { "" },
                     url = url,
-                    loginId = loginId.map { it.encrypt() }.getOrElse { "" },
-                    password = password.map { it.encrypt() }.getOrElse { "" },
+                    loginId = _loginId,
+                    password = _pwd,
                     isActive = true,
                     uuid = uuid
                 )
@@ -86,13 +99,23 @@ class DefaultWebDavRepository @Inject constructor(
         uuid: String,
     ) {
         withContext(dispatcher) {
+            val _loginId = loginId.flatMap { it.decrypt() }
+                .onNone {
+                    Log.e("WebDavRepo::createEntry", "Decrypt fail")
+                }
+                .getOrElse { "" }
+            val _pwd = password.flatMap { it.decrypt() }
+                .onNone {
+                    Log.e("WebDavRepo::createEntry", "Decrypt fail")
+                }
+                .getOrElse { "" }
             dbDAO.upsert(
                 WebDavEntity(
                     id = id,
                     name = name.getOrElse { "" },
                     url = url,
-                    loginId = loginId.map { it.encrypt() }.getOrElse { "" },
-                    password = password.map { it.encrypt() }.getOrElse { "" },
+                    loginId = _loginId,
+                    password = _pwd,
                     isActive = isActive,
                     uuid = uuid
                 )
