@@ -18,13 +18,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
 
 @Composable
 fun WebdavEbookManagerTheme(
-    isDarkTheme: Boolean,
     // Dynamic color is available on Android 12+
     content: @Composable () -> Unit
 ) {
+    val isDarkTheme = LocalIsDarkTheme.current
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             LocalContext.current.let(

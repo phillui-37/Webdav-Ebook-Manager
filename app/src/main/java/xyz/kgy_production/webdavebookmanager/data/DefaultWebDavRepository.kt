@@ -38,15 +38,23 @@ class DefaultWebDavRepository @Inject constructor(
         }
     }
 
+    override suspend fun getEntryByUrlAndLoginId(
+        url: String,
+        loginId: String
+    ): Option<WebDavModel> {
+        return withContext(dispatcher) {
+            dbDAO.getByUrlAndLoginId(url, loginId)?.toModel().toOption()
+        }
+    }
+
     override suspend fun createEntry(
         name: Option<String>,
         url: String,
         loginId: Option<String>,
         password: Option<String>,
-        uuid: Option<String>,
     ) {
         withContext(dispatcher) {
-            var uuid = uuid.getOrElse { UUID.randomUUID().toString() }
+            var uuid = UUID.randomUUID().toString()
             while (getEntryByUuid(uuid).isSome())
                 uuid = UUID.randomUUID().toString()
             dbDAO.insert(

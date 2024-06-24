@@ -10,4 +10,5 @@
     <string name="theme_mode_light">明亮</string>
     <string name="theme_mode_auto">系統</string>
     <string name="setting_theme_setting_title">主題設定</string>
+    <string name="btn_add_webdav_desc">增加新WebDav對象</string>
 </resources>

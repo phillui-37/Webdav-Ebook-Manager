@@ -26,16 +26,24 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        // for dev usage
-        resValue("string", "webdavUrl", properties.getProperty("webdav.credentials.url", ""))
-        resValue("string", "webdavLoginId", properties.getProperty("webdav.credentials.login", ""))
-        resValue("string", "webdavLoginPassword", properties.getProperty("webdav.credentials.password", ""))
     }
 
     buildTypes {
+        debug {
+            // for dev usage
+            resValue("string", "webdavUrl", properties.getProperty("webdav.credentials.url", ""))
+            resValue("string", "webdavLoginId", properties.getProperty("webdav.credentials.login", ""))
+            resValue("string", "webdavLoginPassword", properties.getProperty("webdav.credentials.password", ""))
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+
+            // fallback
+            resValue("string", "webdavUrl", "")
+            resValue("string", "webdavLoginId", "")
+            resValue("string", "webdavLoginPassword", "")
+
         }
     }
     compileOptions {
@@ -62,7 +70,6 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -83,6 +90,9 @@ dependencies {
     implementation(libs.accompanist.drawablepainter) // for drawable to painter
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.runtime.livedata)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtimeCompose)
+    implementation(libs.androidx.material.icons.extended)
 
     testImplementation(libs.junit)
 

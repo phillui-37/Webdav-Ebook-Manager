@@ -18,6 +18,9 @@ interface WebDavDAO {
     @Query("select * from webdav where uuid = :uuid")
     suspend fun getByUuid(uuid: String): WebDavEntity?
 
+    @Query("select * from webdav where url = :url and login_id = :loginId")
+    suspend fun getByUrlAndLoginId(url: String, loginId: String): WebDavEntity?
+
     @Insert
     suspend fun insert(entry: WebDavEntity)
 

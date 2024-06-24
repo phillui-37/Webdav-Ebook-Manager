@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.ui.theme
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn

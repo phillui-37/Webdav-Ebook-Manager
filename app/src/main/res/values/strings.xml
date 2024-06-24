@@ -9,4 +9,24 @@
     <string name="theme_mode_light">Light</string>
     <string name="theme_mode_auto">System</string>
     <string name="setting_theme_setting_title">Theme Setting</string>
+    <string name="btn_add_webdav_desc">Add New WebDav Entry</string>
+    <string name="label_webdav_id">ID</string>
+    <string name="label_webdav_name">Name</string>
+    <string name="label_common_required">Required</string>
+    <string name="label_webdav_url">URL</string>
+    <string name="label_webdav_login_id">Login ID</string>
+    <string name="label_webdav_password">Password</string>
+    <string name="label_common_hide_password">Hide Password</string>
+    <string name="label_common_show_password">Show Password</string>
+    <string name="btn_back_desc">Go Back</string>
+    <string name="screen_edit_webdav_entry_title">Add/Edit Webdav Entry</string>
+    <string name="btn_reset">Reset</string>
+    <string name="btn_submit">Submit</string>
+    <string name="btn_confirm">Confirm</string>
+    <string name="dialog_webdav_delete_title">Delete WebDav Entry</string>
+    <string name="dialog_webdav_delete_text">Are you sure to delete WebDav entry %s?</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_delete_webdav_desc">Delete WebDav Entry</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_online">Online</string>
 </resources>

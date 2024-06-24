@@ -2,6 +2,7 @@ package xyz.kgy_production.webdavebookmanager.component
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -12,6 +13,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.ui.theme.TOP_BAR_DARK_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.TOP_BAR_WHITE_MODIFIER
@@ -21,11 +23,11 @@ import xyz.kgy_production.webdavebookmanager.ui.theme.TOP_BAR_WHITE_MODIFIER
 @Composable
 fun HomeTopBar(
     title: String,
-    isDarkTheme: Boolean,
     openDrawer: () -> Unit,
     onFilterSites: (String) -> Unit,
     onRefresh: () -> Unit,
 ) {
+    val isDarkTheme = LocalIsDarkTheme.current
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
@@ -58,14 +60,33 @@ fun RefreshButton(onRefresh: () -> Unit) {
 @Composable
 fun SettingTopBar(
     title: String,
-    isDarkTheme: Boolean,
     openDrawer: () -> Unit
 ) {
+    val isDarkTheme = LocalIsDarkTheme.current
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
             IconButton(onClick = openDrawer) {
                 Icon(Icons.Filled.Menu, stringResource(id = R.string.btn_drawer_desc))
+            }
+        },
+        modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER
+    )
+}
+
+/** Other **/
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CommonTopBar(
+    title: String,
+    onBack: () -> Unit,
+) {
+    val isDarkTheme = LocalIsDarkTheme.current
+    TopAppBar(
+        title = { Text(text = title) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBackIosNew, stringResource(id = R.string.btn_back_desc))
             }
         },
         modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER
@@ -78,7 +99,6 @@ fun SettingTopBar(
 private fun HomeTopBarPreview() {
     HomeTopBar(
         title = stringResource(id = R.string.screen_home_title),
-        isDarkTheme = isSystemInDarkTheme(),
         openDrawer = {},
         onFilterSites = {},
         onRefresh = {}
@@ -90,7 +110,6 @@ private fun HomeTopBarPreview() {
 private fun SettingTopBarPreview() {
     SettingTopBar(
         title = stringResource(id = R.string.screen_setting_title),
-        isDarkTheme = isSystemInDarkTheme(),
         openDrawer = {}
     )
 }

@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -26,18 +27,16 @@ import xyz.kgy_production.webdavebookmanager.viewmodel.SettingViewModel
 
 @Composable
 fun SettingScreen(
-    isDarkTheme: Boolean,
     openDrawer: () -> Unit,
     updateThemeSetting: FnUpdateThemeSetting,
     coroutineScope: CoroutineScope,
     modifier: Modifier = Modifier,
-    viewModel: ViewModel = SettingViewModel()
+    viewModel: SettingViewModel = hiltViewModel()
 ) {
     Scaffold(
         topBar = {
             SettingTopBar(
                 title = stringResource(id = R.string.screen_setting_title),
-                isDarkTheme = isDarkTheme,
                 openDrawer = openDrawer
             )
         },

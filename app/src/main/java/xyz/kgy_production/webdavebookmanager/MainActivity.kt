@@ -9,7 +9,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.datastore.preferences.core.edit
@@ -30,6 +34,8 @@ import xyz.kgy_production.webdavebookmanager.util.eq
 import xyz.kgy_production.webdavebookmanager.util.isSystemDarkMode
 import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
 
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val themeViewModel by viewModels<ThemeViewModel>()
@@ -40,17 +46,20 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkState = themeViewModel.getIsDarkState(dataStore = dataStore)
-            themeViewModel.subscribeThemeModeChange(this, this)
-            WebdavEbookManagerTheme(
-                isDarkTheme = isDarkState.value
-            ) {
-                NaviGraph(
-                    modifier = Modifier.padding(),
-                    isDarkTheme = isDarkState.value,
-                    updateThemeSetting = { opt ->
-                        themeViewModel.updateThemeSetting(opt, dataStore)
-                    }
-                )
+            LaunchedEffect(Unit) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    themeViewModel.subscribeThemeModeChange(this@MainActivity)
+                }
+            }
+            CompositionLocalProvider(LocalIsDarkTheme provides isDarkState.value) {
+                WebdavEbookManagerTheme {
+                    NaviGraph(
+                        modifier = Modifier.padding(),
+                        updateThemeSetting = { opt ->
+                            themeViewModel.updateThemeSetting(opt, dataStore)
+                        }
+                    )
+                }
             }
         }
     }

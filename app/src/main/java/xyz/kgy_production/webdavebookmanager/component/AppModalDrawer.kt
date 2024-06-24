@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
@@ -27,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,14 +37,14 @@ import androidx.navigation.compose.rememberNavController
 import arrow.core.Some
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
 import xyz.kgy_production.webdavebookmanager.NaviActions
+import xyz.kgy_production.webdavebookmanager.Path
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.Screens
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.ui.theme.DRAWER_WIDTH_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
-import xyz.kgy_production.webdavebookmanager.util.getPainterFromDrawable
 import xyz.kgy_production.webdavebookmanager.util.primaryDarkColor
 import xyz.kgy_production.webdavebookmanager.util.primaryWhiteColor
 
@@ -50,7 +53,6 @@ fun AppModalDrawer(
     drawerState: DrawerState,
     currentRoute: String,
     naviActions: NaviActions,
-    isDarkTheme: Boolean,
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
     content: @Composable () -> Unit
 ) {
@@ -59,7 +61,6 @@ fun AppModalDrawer(
         drawerContent = {
             AppDrawer(
                 currentRoute = currentRoute,
-                isDarkTheme = isDarkTheme,
                 navigateToHome = { naviActions.navigateToHome() },
                 navigateToSetting = { naviActions.navigateToSetting() },
                 closeDrawer = { coroutineScope.launch { drawerState.close() } }
@@ -74,7 +75,6 @@ private fun AppDrawer(
     navigateToHome: () -> Unit,
     navigateToSetting: () -> Unit,
     closeDrawer: () -> Unit,
-    isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -82,20 +82,20 @@ private fun AppDrawer(
             .then(DRAWER_WIDTH_MODIFIER)
             .fillMaxHeight()
     ) {
-        DrawerHeader(isDarkTheme)
+        DrawerHeader()
         DrawerButton(
-            painter = getPainterFromDrawable(android.R.drawable.btn_star),
+            imageVector = Icons.Filled.Home,
             label = stringResource(id = R.string.screen_home_title),
-            isSelected = currentRoute == Screens.HOME,
+            isSelected = currentRoute == Path.HOME,
             action = {
                 navigateToHome()
                 closeDrawer()
             }
         )
         DrawerButton(
-            painter = getPainterFromDrawable(android.R.drawable.btn_plus),
+            imageVector = Icons.Filled.Edit,
             label = stringResource(id = R.string.screen_setting_title),
-            isSelected = currentRoute == Screens.SETTING,
+            isSelected = currentRoute == Path.SETTING,
             action = {
                 navigateToSetting()
                 closeDrawer()
@@ -106,9 +106,9 @@ private fun AppDrawer(
 
 @Composable
 private fun DrawerHeader(
-    isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val isDarkTheme = LocalIsDarkTheme.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -119,7 +119,7 @@ private fun DrawerHeader(
             .then(INTERNAL_HORIZONTAL_PADDING_MODIFIER)
     ) {
         Image(
-            painter = getPainterFromDrawable(android.R.drawable.btn_star),
+            imageVector = Icons.Filled.AccountCircle,
             contentDescription = stringResource(id = R.string.drawer_header_title),
         )
         Text(
@@ -131,12 +131,15 @@ private fun DrawerHeader(
 
 @Composable
 private fun DrawerButton(
-    painter: Painter,
+    modifier: Modifier = Modifier,
+    painter: Painter? = null,
+    imageVector: ImageVector? = null,
     label: String,
     isSelected: Boolean,
     action: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
+    require(painter != null || imageVector != null)
+    require(painter == null || imageVector == null)
     val tintColor = if (isSelected) {
         MaterialTheme.colorScheme.secondary
     } else {
@@ -154,11 +157,18 @@ private fun DrawerButton(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                painter = painter,
-                contentDescription = null, // decorative
-                tint = tintColor,
-            )
+            if (painter != null)
+                Icon(
+                    painter,
+                    contentDescription = null, // decorative
+                    tint = tintColor,
+                )
+            else
+                Icon(
+                    imageVector = imageVector!!,
+                    contentDescription = null,
+                    tint = tintColor
+                )
             Spacer(Modifier.width(16.dp))
             Text(
                 text = label,
@@ -174,16 +184,14 @@ private fun DrawerButton(
 @Composable
 fun AppModalDrawerPreview() {
     val navController = rememberNavController()
-    WebdavEbookManagerTheme(isSystemInDarkTheme()) {
+    WebdavEbookManagerTheme {
         AppModalDrawer(
             drawerState = rememberDrawerState(initialValue = DrawerValue.Open),
-            currentRoute = Screens.HOME,
-            isDarkTheme = isSystemInDarkTheme(),
+            currentRoute = Path.HOME,
             naviActions = remember(navController) { NaviActions(navController) }
         ) {
             HomeScreen(
                 modifier = Modifier,
-                isDarkTheme = isSystemInDarkTheme(),
                 toDirectoryScreen = { Some("") },
                 toEditWebDavScreen = { Some("") },
                 openDrawer = {}

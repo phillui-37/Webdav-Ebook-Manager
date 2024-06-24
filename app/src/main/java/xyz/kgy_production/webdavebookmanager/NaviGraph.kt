@@ -1,5 +1,6 @@
 package xyz.kgy_production.webdavebookmanager
 
+import android.util.Log
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
@@ -15,7 +16,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import arrow.core.Some
 import arrow.core.getOrElse
+import arrow.core.none
 import arrow.core.toOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -29,12 +32,11 @@ import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
 @Composable
 fun NaviGraph(
     updateThemeSetting: FnUpdateThemeSetting,
-    isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
     drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
-    startDestination: String = Screens.HOME,
+    startDestination: String = Path.HOME,
     naviActions: NaviActions = remember(navController) { NaviActions(navController) }
 ) {
     val currentNavBackStackEntry by navController.currentBackStackEntryAsState()
@@ -45,15 +47,14 @@ fun NaviGraph(
         startDestination = startDestination,
         modifier = modifier,
     ) {
-        composable(Screens.HOME) {
-            AppModalDrawer(drawerState, currentRoute, naviActions, isDarkTheme) {
+        composable(Path.HOME) {
+            AppModalDrawer(drawerState, currentRoute, naviActions) {
                 HomeScreen(
-                    isDarkTheme = isDarkTheme,
                     toEditWebDavScreen = {
-                        naviActions.navigateToAddWebdavEntry(it.getOrElse { "" })
+                        naviActions.navigateToAddWebdavEntry(it.getOrNull())
                     },
                     toDirectoryScreen = {
-                        naviActions.navigateToDirectory(it.getOrElse { "" })
+                        naviActions.navigateToDirectory(it.getOrNull())
                     },
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }
@@ -61,12 +62,11 @@ fun NaviGraph(
                 )
             }
         }
-        composable(Screens.SETTING) {
-            AppModalDrawer(drawerState, currentRoute, naviActions, isDarkTheme) {
+        composable(Path.SETTING) {
+            AppModalDrawer(drawerState, currentRoute, naviActions) {
                 SettingScreen(
                     updateThemeSetting = updateThemeSetting,
                     coroutineScope = coroutineScope,
-                    isDarkTheme = isDarkTheme,
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }
                     }
@@ -74,12 +74,15 @@ fun NaviGraph(
             }
         }
         composable(
-            Screens.EDIT_WEBDAV_ENTRY,
+            Path.EDIT_WEBDAV_ENTRY,
             arguments = listOf(
-                navArgument(RouteArgs.EditWebDavEntry.UUID) { type = NavType.StringType; defaultValue = "" }
+                navArgument(RouteArgs.EditWebDavEntry.UUID) { type = NavType.StringType; nullable = true }
             )
         ) { entry ->
-            val uuid = entry.arguments?.getString(RouteArgs.EditWebDavEntry.UUID).toOption()
+            val uuid = when (val it = entry.arguments?.getString(RouteArgs.EditWebDavEntry.UUID)) {
+                "", null -> none()
+                else -> Some(it)
+            }
             EditWebDavEntryScreen(
                 uuid = uuid,
                 onBack = navController::popBackStack
