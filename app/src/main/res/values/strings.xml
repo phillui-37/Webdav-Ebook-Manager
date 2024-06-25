@@ -41,10 +41,4 @@
     <string name="btn_show_menu">Show menu</string>
     <string name="label_to_parent_dir">To parent dir</string>
     <string name="label_common_filter">Filter</string>
-    <string name="dialog_webdav_menu_text">Please select one action</string>
-    <string name="dialog_webdav_menu_option_to_dir">View content</string>
-    <string name="dialog_webdav_menu_option_del">Delete Webdav entry</string>
-    <string name="dialog_webdav_menu_option_edit">Edit server info</string>
-    <string name="label_common_no_network">Network not available</string>
-    <string name="status_no_network">No Network</string>
 </resources>
