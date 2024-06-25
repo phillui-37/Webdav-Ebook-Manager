@@ -8,18 +8,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
@@ -44,25 +47,41 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import arrow.core.Option
 import arrow.core.Some
 import arrow.core.none
+import arrow.core.raise.option
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import xyz.kgy_production.webdavebookmanager.LocalIsNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.HomeTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
-import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
 import xyz.kgy_production.webdavebookmanager.util.checkAvailability
 import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.matchParentWidth
+import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.viewmodel.HomeViewModel
 import java.net.URL
-import java.util.UUID
+
+private data class DeleteEntryData(
+    val id: Int,
+    val url: String,
+    val loginId: String
+)
+
+private data class MenuData(
+    val onCancel: () -> Unit,
+    val onShowDeleteDialog: () -> Unit,
+    val toDirectory: () -> Unit,
+    val toWebdavDetail: () -> Unit,
+    val finalCb: () -> Unit,
+)
 
 @Composable
 fun HomeScreen(
@@ -73,20 +92,33 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val coroutineScope = CoroutineScope(Dispatchers.IO)
-    var entryToDelete by remember { mutableStateOf<Option<Pair<Int, String>>>(none()) }
+    var entryToDelete by remember { mutableStateOf<Option<DeleteEntryData>>(none()) }
     var refreshCbList by remember { mutableStateOf<List<suspend () -> Unit>>(listOf()) }
+    var menuData by remember { mutableStateOf<Option<MenuData>>(none()) }
 
-    if (entryToDelete.isSome()) {
-        val entry = entryToDelete.getOrNull()!!
+    option {
+        val entry = entryToDelete.bind()
         DeleteEntryDialog(
-            url = entry.second,
+            url = entry.url,
+            loginId = entry.loginId,
             onCancel = { },
             onDelete = {
                 coroutineScope.launch {
-                    viewModel.removeEntry(entry.first)
+                    viewModel.removeEntry(entry.id)
                 }
             },
             finalCb = { entryToDelete = none() }
+        )
+    }
+
+    option {
+        val data = menuData.bind()
+        MenuDialog(
+            onCancel = data.onCancel,
+            onShowDeleteDialog = data.onShowDeleteDialog,
+            toDirectory = data.toDirectory,
+            toWebdavDetail = data.toWebdavDetail,
+            finalCb = data.finalCb,
         )
     }
 
@@ -119,8 +151,28 @@ fun HomeScreen(
                     WebDavCard(
                         model = model,
                         coroutineScope = coroutineScope,
-                        onClick = { toEditWebDavScreen(Some(it)) },
-                        toShowDeleteDialog = { entryToDelete = Some(model.id to model.url) },
+                        toShowMenuDialog = {
+                            menuData = Some(MenuData(
+                                onCancel = { },
+                                onShowDeleteDialog = {
+                                    entryToDelete =
+                                        Some(
+                                            DeleteEntryData(
+                                                model.id,
+                                                model.url,
+                                                model.loginId
+                                            )
+                                        )
+                                },
+                                toDirectory = {
+                                    toDirectoryScreen(Some(model.url))
+                                },
+                                toWebdavDetail = {
+                                    toEditWebDavScreen(Some(model.uuid))
+                                },
+                                finalCb = { menuData = none() }
+                            ))
+                        },
                         refreshCb = { refreshCbList += it }
                     )
                 }
@@ -130,70 +182,107 @@ fun HomeScreen(
 }
 
 @Composable
+private fun MenuDialog(
+    onCancel: () -> Unit,
+    onShowDeleteDialog: () -> Unit,
+    toDirectory: () -> Unit,
+    toWebdavDetail: () -> Unit,
+    finalCb: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onCancel pipe finalCb
+    ) {
+        Card(
+            modifier = Modifier
+                .wrapContentSize(),
+        ) {
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.wrapContentSize()
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.dialog_webdav_menu_text),
+                    textAlign = TextAlign.Center
+                )
+                TextButton(onClick = toDirectory pipe finalCb, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = stringResource(id = R.string.dialog_webdav_menu_option_to_dir))
+                }
+                TextButton(onClick = toWebdavDetail pipe finalCb, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = stringResource(id = R.string.dialog_webdav_menu_option_edit))
+                }
+                TextButton(onClick = onShowDeleteDialog pipe finalCb, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = stringResource(id = R.string.dialog_webdav_menu_option_del))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DeleteEntryDialog(
     url: String,
+    loginId: String,
     onDelete: () -> Unit,
     onCancel: () -> Unit,
     finalCb: () -> Unit,
 ) {
     AlertDialog(
         title = { Text(text = stringResource(id = R.string.dialog_webdav_delete_title)) },
-        text = { Text(text = stringResource(id = R.string.dialog_webdav_delete_text).format(url)) },
+        text = {
+            Text(
+                text = stringResource(id = R.string.dialog_webdav_delete_text).format(
+                    url,
+                    loginId
+                )
+            )
+        },
         dismissButton = {
-            TextButton(onClick = {
-                onCancel()
-                finalCb()
-            }) {
+            TextButton(onClick = onCancel pipe finalCb) {
                 Text(text = stringResource(id = R.string.btn_cancel))
             }
         },
-        onDismissRequest = {
-            onCancel()
-            finalCb()
-        },
+        onDismissRequest = onCancel pipe finalCb,
         confirmButton = {
-            TextButton(onClick = {
-                onDelete()
-                finalCb()
-            }) {
+            TextButton(onClick = onDelete pipe finalCb) {
                 Text(text = stringResource(id = R.string.btn_confirm))
             }
         })
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WebDavCard(
     model: WebDavModel,
     coroutineScope: CoroutineScope,
-    onClick: (String) -> Unit,
-    toShowDeleteDialog: () -> Unit,
+    toShowMenuDialog: () -> Unit,
     refreshCb: (suspend () -> Unit) -> Unit,
 ) {
-    var isAvailable by remember { mutableStateOf(true) }
+    val isNetworkAvailable = LocalIsNetworkAvailable.current
+    var isAvailable by remember { mutableStateOf(isNetworkAvailable) }
+    // todo offline handling: cache dir tree and book
 
     LaunchedEffect(Unit) {
         coroutineScope.launch {
-            isAvailable = URL(model.url).checkAvailability()
+            isAvailable = isNetworkAvailable && URL(model.url).checkAvailability()
         }
     }
 
     refreshCb {
-        isAvailable = URL(model.url).checkAvailability()
+        isAvailable = isNetworkAvailable && URL(model.url).checkAvailability()
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 10.dp)
             .wrapContentHeight()
-            .shadow(5.dp)
-            .combinedClickable(
-                onClick = { onClick(model.uuid) },
-                onLongClick = toShowDeleteDialog,
-                onLongClickLabel = stringResource(id = R.string.btn_delete_webdav_desc)
-            ),
+            .shadow(5.dp),
+        onClick = toShowMenuDialog,
     ) {
-        Row {
+        Row(
+            modifier = Modifier.padding(4.dp)
+        ) {
             Column(
                 modifier = Modifier.weight(.85f)
             ) {
@@ -203,23 +292,35 @@ private fun WebDavCard(
                 Text(text = "Login ID: ${model.loginId}")
             }
             Box(
-                modifier = Modifier.weight(.15f).align(Alignment.CenterVertically),
+                modifier = Modifier
+                    .weight(.15f)
+                    .align(Alignment.CenterVertically),
             ) {
                 Column(
                     modifier = Modifier.matchParentHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(if (isAvailable) Color.Green else Color.Red)
-                    )
+                    if (isNetworkAvailable)
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(if (isAvailable) Color.Green else Color.Red)
+                        )
+                    else
+                        Icon(
+                            Icons.Outlined.Circle,
+                            stringResource(id = R.string.label_common_no_network)
+                        )
                     Text(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
-                        text = stringResource(id = if (isAvailable) R.string.status_online else R.string.status_offline)
+                        text = stringResource(
+                            id = if (!isNetworkAvailable) R.string.status_no_network
+                            else if (isAvailable) R.string.status_online
+                            else R.string.status_offline
+                        )
                     )
                 }
             }
@@ -255,18 +356,59 @@ private fun Fab(
     }
 }
 
+@Preview
 @Composable
-private fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello wow $name!",
-        modifier = modifier
+fun MenuDialogPreview() {
+    MenuDialog(
+        onCancel = { },
+        onShowDeleteDialog = { },
+        toDirectory = { },
+        toWebdavDetail = { },
+        finalCb = { },
     )
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
-fun GreetingPreview() {
-    WebdavEbookManagerTheme {
-        Greeting("Android")
+fun DeleteEntryDialogPreview() {
+    DeleteEntryDialog(
+        url = "url",
+        loginId = "loginId",
+        onDelete = { },
+        onCancel = { },
+        finalCb = { }
+    )
+}
+
+@Preview
+@Composable
+fun WebDavCardPreview() {
+    WebDavCard(
+        model = WebDavModel(
+            name = "name",
+            url = "url",
+            loginId = "loginId"
+        ),
+        coroutineScope = CoroutineScope(Dispatchers.IO),
+        toShowMenuDialog = { },
+        refreshCb = { }
+    )
+}
+
+@Preview
+@Composable
+fun TopBarPreview() {
+    TopBar(openDrawer = { }, onFilterSites = { }) {
+
     }
+}
+
+@Preview
+@Composable
+fun HomeScreenPreview() {
+    HomeScreen(
+        openDrawer = { },
+        toEditWebDavScreen = {},
+        toDirectoryScreen = {}
+    )
 }

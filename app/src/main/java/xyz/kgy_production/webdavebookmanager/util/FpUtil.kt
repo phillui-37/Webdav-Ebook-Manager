@@ -20,3 +20,8 @@ fun <T: Comparable<T>> T.gt(other: T) = cmp(other) == Ord.GT
 fun <T: Comparable<T>> T.ge(other: T) = cmp(other) >= Ord.EQ
 fun <T: Comparable<T>> T.lt(other: T) = cmp(other) == Ord.LT
 fun <T: Comparable<T>> T.le(other: T) = cmp(other) <= Ord.EQ
+
+inline infix fun (() -> Unit).pipe(crossinline fn: () -> Unit): () -> Unit = {
+    this()
+    fn()
+}

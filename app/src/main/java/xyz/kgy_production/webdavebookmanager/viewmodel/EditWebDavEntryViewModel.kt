@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import arrow.core.Either
 import arrow.core.Option
@@ -9,7 +8,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
-import xyz.kgy_production.webdavebookmanager.data.toEntity
 import javax.inject.Inject
 
 @HiltViewModel
