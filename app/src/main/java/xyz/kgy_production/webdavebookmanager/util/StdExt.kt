@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import arrow.core.Either
 import arrow.core.Option
-import arrow.core.getOrElse
 import arrow.core.toOption
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.UnknownHostException
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 fun String.encrypt(): Option<String> = when (val result = encrypt(this)) {
     is Either.Right<*> -> result.getOrNull().toOption()
@@ -43,3 +45,15 @@ fun URL.checkAvailability(): Boolean {
 
 fun Modifier.matchParentWidth() = width(IntrinsicSize.Max)
 fun Modifier.matchParentHeight() = height(IntrinsicSize.Max)
+
+fun String.formatDateTime(format: String): LocalDateTime {
+    val formatter = DateTimeFormatter.ofPattern(format)
+    return LocalDateTime.parse(this, formatter)
+}
+
+fun String.formatDateTime(formatter: DateTimeFormatter): LocalDateTime {
+    return LocalDateTime.parse(this, formatter)
+}
+
+fun Long.toDateTime() =
+    LocalDateTime.ofInstant(Instant.ofEpochMilli(this), java.util.TimeZone.getDefault().toZoneId())

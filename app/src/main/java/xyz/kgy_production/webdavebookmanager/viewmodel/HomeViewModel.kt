@@ -1,8 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.viewmodel
 
 import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -10,24 +8,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
-import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import javax.inject.Inject
-import kotlin.coroutines.CoroutineContext
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val webDavRepository: WebDavRepository,
 ): ViewModel() {
     private var webdavDomainList: List<WebDavModel> = listOf()
-    private val _filteredWebDavDomainListLiveData = MutableStateFlow<List<WebDavModel>>(listOf())
-    val filteredWebdavDomainListLiveData: StateFlow<List<WebDavModel>>
-        get() = _filteredWebDavDomainListLiveData
+    private val _filteredWebDavDomainListFlow = MutableStateFlow<List<WebDavModel>>(listOf())
+    val filteredWebdavDomainListFlow: StateFlow<List<WebDavModel>>
+        get() = _filteredWebDavDomainListFlow
+
 
     init {
         runBlocking(Dispatchers.IO) {
             webdavDomainList = webDavRepository.getAllEntries()
-            _filteredWebDavDomainListLiveData.value = webdavDomainList
+            _filteredWebDavDomainListFlow.value = webdavDomainList
         }
     }
 
@@ -39,7 +36,7 @@ class HomeViewModel @Inject constructor(
         try {
             webDavRepository.deleteEntry(id)
             webdavDomainList = webdavDomainList.filter { it.id != id }
-            _filteredWebDavDomainListLiveData.value = webdavDomainList
+            _filteredWebDavDomainListFlow.value = webdavDomainList
         } catch (e: Exception) {
             Log.e("HomeViewModel::removeEntry", e.message ?: "Error occurred")
             e.printStackTrace()
@@ -48,7 +45,7 @@ class HomeViewModel @Inject constructor(
 
     /** todo data from webdav model */
     fun filterWebdavList(filterText: String) {
-        _filteredWebDavDomainListLiveData.value =
+        _filteredWebDavDomainListFlow.value =
             webdavDomainList.filter {
                 it.name.contains(filterText) || it.url.contains(filterText)
             }

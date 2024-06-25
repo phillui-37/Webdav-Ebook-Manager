@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager
 
-import android.util.Log
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 
@@ -15,13 +14,13 @@ private object Screens {
 object Path {
     const val HOME = Screens.HOME
     const val SETTING = Screens.SETTING
-    const val DIRECTORY = "${Screens.DIRECTORY}/${RouteArgs.Directory.PATH}={${RouteArgs.Directory.PATH}}"
+    const val DIRECTORY = "${Screens.DIRECTORY}/{${RouteArgs.Directory.ID}}"
     const val EDIT_WEBDAV_ENTRY = "${Screens.EDIT_WEBDAV_ENTRY}?${RouteArgs.EditWebDavEntry.UUID}={${RouteArgs.EditWebDavEntry.UUID}}"
 }
 
 object RouteArgs {
     object Directory {
-        const val PATH = "path"
+        const val ID = "id"
     }
     object EditWebDavEntry {
         const val UUID = "uuid"
@@ -49,12 +48,9 @@ class NaviActions(private val navHostController: NavHostController) {
         }
     }
 
-    // will not escape the path
-    fun navigateToDirectory(path: String?) {
+    fun navigateToDirectory(id: Int) {
         navHostController.navigate(
-            if (path == null)
-                Screens.DIRECTORY
-            else "${Screens.DIRECTORY}?${RouteArgs.Directory.PATH}=${path}"
+            "${Screens.DIRECTORY}/${id}"
         )
     }
 

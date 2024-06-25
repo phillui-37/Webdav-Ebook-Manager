@@ -18,3 +18,6 @@ enum class ThemeOption {
 enum class ConfigKey {
     THEME_OPTION;
 }
+
+object DateTimePattern {
+}

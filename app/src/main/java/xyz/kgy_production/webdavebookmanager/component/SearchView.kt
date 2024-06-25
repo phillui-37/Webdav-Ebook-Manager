@@ -38,7 +38,7 @@ fun SearchView(
         searchContent = newValue
         CoroutineScope(Dispatchers.IO).launch {
             val oldText = searchContent
-            delay(500L)
+            delay(300L)
             if (oldText == searchContent)
                 onSearch(searchContent)
         }.start()

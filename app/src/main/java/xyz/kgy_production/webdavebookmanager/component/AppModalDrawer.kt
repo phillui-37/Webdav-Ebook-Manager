@@ -45,6 +45,7 @@ import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.ui.theme.DRAWER_WIDTH_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
+import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.primaryDarkColor
 import xyz.kgy_production.webdavebookmanager.util.primaryWhiteColor
 
@@ -77,29 +78,25 @@ private fun AppDrawer(
     closeDrawer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bgColor = MaterialTheme.colorScheme.secondaryContainer
     Column(
         modifier = modifier
             .then(DRAWER_WIDTH_MODIFIER)
             .fillMaxHeight()
+            .background(bgColor)
     ) {
         DrawerHeader()
         DrawerButton(
             imageVector = Icons.Filled.Home,
             label = stringResource(id = R.string.screen_home_title),
             isSelected = currentRoute == Path.HOME,
-            action = {
-                navigateToHome()
-                closeDrawer()
-            }
+            action = navigateToHome pipe closeDrawer
         )
         DrawerButton(
             imageVector = Icons.Filled.Edit,
             label = stringResource(id = R.string.screen_setting_title),
             isSelected = currentRoute == Path.SETTING,
-            action = {
-                navigateToSetting()
-                closeDrawer()
-            }
+            action = navigateToSetting pipe closeDrawer
         )
     }
 }
@@ -141,7 +138,7 @@ private fun DrawerButton(
     require(painter != null || imageVector != null)
     require(painter == null || imageVector == null)
     val tintColor = if (isSelected) {
-        MaterialTheme.colorScheme.secondary
+        MaterialTheme.colorScheme.tertiary
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
     }

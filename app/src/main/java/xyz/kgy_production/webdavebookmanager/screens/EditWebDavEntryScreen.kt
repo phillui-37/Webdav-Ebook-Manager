@@ -46,6 +46,7 @@ import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.util.matchParentWidth
 import xyz.kgy_production.webdavebookmanager.viewmodel.EditWebDavEntryViewModel
 
 @Composable
@@ -134,7 +135,8 @@ fun EditWebDavEntryScreen(
             InputField(
                 label = stringResource(id = R.string.label_webdav_password),
                 value = model.password,
-                isRequired = true
+                isRequired = true,
+                isPassword = true
             ) {
                 viewModel.updateModel(model.copy(password = it))
             }
@@ -195,14 +197,14 @@ private fun InputField(
     @Composable
     fun TF(modifier: Modifier = Modifier) {
         TextField(
-            modifier = modifier,
+            modifier = modifier.fillMaxWidth(),
             value = value,
             onValueChange = onValueChange,
             placeholder = { Text(label) },
             readOnly = readOnly,
             singleLine = true,
             label = { Text(label) },
-            visualTransformation = if (isPassword && visible) VisualTransformation.None else PasswordVisualTransformation(),
+            visualTransformation = if (!isPassword || visible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text),
             trailingIcon = {
                 if (isPassword) {

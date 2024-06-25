@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager
 
-import android.util.Log
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
@@ -17,17 +16,17 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import arrow.core.Some
-import arrow.core.getOrElse
 import arrow.core.none
-import arrow.core.toOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
+import xyz.kgy_production.webdavebookmanager.screens.DirectoryScreen
 import xyz.kgy_production.webdavebookmanager.screens.EditWebDavEntryScreen
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
 import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
-import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 @Composable
 fun NaviGraph(
@@ -54,7 +53,7 @@ fun NaviGraph(
                         naviActions.navigateToAddWebdavEntry(it.getOrNull())
                     },
                     toDirectoryScreen = {
-                        naviActions.navigateToDirectory(it.getOrNull())
+                        naviActions.navigateToDirectory(it)
                     },
                     openDrawer = {
                         coroutineScope.launch { drawerState.open() }
@@ -85,6 +84,18 @@ fun NaviGraph(
             }
             EditWebDavEntryScreen(
                 uuid = uuid,
+                onBack = navController::popBackStack
+            )
+        }
+        composable(
+            Path.DIRECTORY,
+            arguments = listOf(
+                navArgument(RouteArgs.Directory.ID) { type = NavType.IntType }
+            )
+        )  { entry ->
+            val id = entry.arguments?.getInt(RouteArgs.Directory.ID)!!
+            DirectoryScreen(
+                id = id,
                 onBack = navController::popBackStack
             )
         }

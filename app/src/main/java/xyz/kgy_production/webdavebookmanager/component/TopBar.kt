@@ -3,8 +3,10 @@ package xyz.kgy_production.webdavebookmanager.component
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,6 +92,35 @@ fun CommonTopBar(
             }
         },
         modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER
+    )
+}
+
+/** for non root */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DirectoryTopBar(
+    title: String,
+    onBack: () -> Unit,
+    toParentDir: () -> Unit,
+    onSearch: (String) -> Unit,
+    onFilter: () -> Unit, // TODO
+) {
+    val isDarkTheme = LocalIsDarkTheme.current
+    TopAppBar(
+        title = { Text(text = title) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBackIosNew, stringResource(id = R.string.btn_back_desc))
+            }
+        },
+        modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER,
+        actions = {
+            SearchView(onSearch = onSearch)
+            FilterView(onFilter = onFilter) // TODO
+            IconButton(onClick = toParentDir) {
+                Icon(Icons.Filled.ArrowUpward, stringResource(id = R.string.label_to_parent_dir))
+            }
+        }
     )
 }
 
