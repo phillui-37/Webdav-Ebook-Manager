@@ -3,6 +3,7 @@ package xyz.kgy_production.webdavebookmanager.data
 import android.util.Log
 import arrow.core.Option
 import arrow.core.getOrElse
+import arrow.core.none
 import arrow.core.raise.option
 import arrow.core.toOption
 import kotlinx.coroutines.CoroutineDispatcher
@@ -46,17 +47,20 @@ class DefaultWebDavRepository @Inject constructor(
         loginId: String
     ): Option<WebDavModel> {
         return withContext(dispatcher) {
-            option {
-                val _loginId = loginId
-                    .encrypt()
-                    .onNone { Log.e("WebDavRepo::getEntryByUrlAndLoginId", "Encrypt fail") }
-                    .bind()
-                dbDAO.getByUrlAndLoginId(url, _loginId)
-                    ?.toModel()
-                    .toOption()
-                    .onNone { Log.d("WebDavRepo::getEntryByUrlAndLoginId", "Entry no exists") }
-                    .bind()
-            }
+            dbDAO.getByUrl(url)
+                .firstOrNull {
+                    val _loginId = it.loginId.decrypt()
+                        .onNone {
+                            Log.e(
+                                "WebDavRepo::getEntryByUrlAndLoginId",
+                                "Login id decrypt error"
+                            )
+                        }
+                        .getOrElse { "" }
+                    _loginId == loginId
+                }
+                ?.toModel()
+                .toOption()
         }
     }
 
