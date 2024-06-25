@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    kotlin("plugin.serialization")
 }
 
 val properties = Properties()
@@ -93,7 +94,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtimeCompose)
     implementation(libs.androidx.material.icons.extended)
-    runtimeOnly(libs.jetbrains.kotlinx.serialization.protobuf)
+    implementation(libs.jetbrains.kotlinx.serialization.protobuf)
 
     testImplementation(libs.junit)
 

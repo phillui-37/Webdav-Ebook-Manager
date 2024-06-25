@@ -1,0 +1,11 @@
+- fetch whole webdav and create directory cache
+  - wifi only, background service with notification
+  - create protobuf with files metadata also at **root**
+  - first time full, other will be updated when enter to directory
+  - can manual full scan afterwards without affect books metadata
+  - content provider to allow other ebook reader app to open the ebook
+  - maybe useful ref
+    - https://developer.android.com/develop/ui/compose/components/snackbar
+    - https://developer.android.com/develop/background-work/services/foreground-services
+    - https://developer.android.com/guide/topics/providers/content-provider-basics
+    - https://github.com/Kotlin/kotlinx.serialization/blob/master/docs/formats.md#protobuf-experimental

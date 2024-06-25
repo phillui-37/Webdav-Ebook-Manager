@@ -5,4 +5,5 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
+    kotlin("plugin.serialization") version "2.0.0"
 }
