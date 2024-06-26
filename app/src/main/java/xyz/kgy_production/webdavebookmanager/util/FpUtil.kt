@@ -25,3 +25,6 @@ inline infix fun (() -> Unit).pipe(crossinline fn: () -> Unit): () -> Unit = {
     this()
     fn()
 }
+inline infix fun <T, U, R> ((T) -> U).pipe(crossinline fn: (U) -> R): (T) -> R = { t -> fn(this(t))}
+
+fun <T> id(t: T) = t

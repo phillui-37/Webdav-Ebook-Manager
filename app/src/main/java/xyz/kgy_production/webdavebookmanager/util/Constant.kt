@@ -21,3 +21,9 @@ enum class ConfigKey {
 
 object DateTimePattern {
 }
+
+object MimeType {
+    const val PROTOBUF = "application/protobuf"
+}
+
+const val BOOK_METADATA_CONFIG_FILENAME = ".config.protobuf"

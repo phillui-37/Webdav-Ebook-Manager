@@ -8,16 +8,19 @@ import at.bitfire.dav4jvm.property.DisplayName
 import at.bitfire.dav4jvm.property.GetContentLength
 import at.bitfire.dav4jvm.property.GetContentType
 import at.bitfire.dav4jvm.property.GetLastModified
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
+import kotlin.math.log
 
-suspend fun getWebDavDirContentList(
-    url: String,
-    loginId: String,
-    password: String,
-    contentListSetter: (List<DirectoryViewModel.ContentData>) -> Unit
-) {
+fun getWebDavCollection(url: String, loginId: String, password: String): DavCollection {
     val authHandler = BasicDigestAuthHandler(
         domain = null,
         username = loginId,
@@ -28,7 +31,16 @@ suspend fun getWebDavDirContentList(
         .authenticator(authHandler)
         .addNetworkInterceptor(authHandler)
         .build()
-    val collection = DavCollection(client, url.toHttpUrl())
+    return DavCollection(client, url.toHttpUrl())
+}
+
+suspend fun getWebDavDirContentList(
+    url: String,
+    loginId: String,
+    password: String,
+    contentListSetter: (List<DirectoryViewModel.ContentData>) -> Unit
+) {
+    val collection = getWebDavCollection(url, loginId, password)
     val properties = arrayOf(
         DisplayName.NAME,
         GetContentType.NAME,
@@ -46,22 +58,41 @@ suspend fun getWebDavDirContentList(
 
 suspend fun checkIsWebDavDomainAvailable(url: String, loginId: String, password: String): Boolean {
     try {
-        val authHandler = BasicDigestAuthHandler(
-            domain = null,
-            username = loginId,
-            password = password,
-        )
-        val client = OkHttpClient.Builder()
-            .followRedirects(false)
-            .authenticator(authHandler)
-            .addNetworkInterceptor(authHandler)
-            .build()
-        val collection = DavCollection(client, url.toHttpUrl())
+        val collection = getWebDavCollection(url, loginId, password)
         collection.propfind(1, DisplayName.NAME) { _, _ -> }
         return true
     } catch (e: Exception) {
         Log.w("checkIsWebDavDomainAvailable", "$url is not reachable")
         e.printStackTrace()
         return false
+    }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+suspend inline fun <reified T> writeDataToWebDav(
+    data: T,
+    filename: String,
+    url: String,
+    loginId: String,
+    password: String,
+) {
+    val collection = getWebDavCollection("$url/$filename", loginId, password)
+    val encoded = ProtoBuf.encodeToByteArray(data)
+    collection.put(encoded.toRequestBody(MimeType.PROTOBUF.toMediaType())) { response ->
+        Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+    }
+}
+
+suspend inline fun <T> getFileFromWebDav(
+    filename: String,
+    url: String,
+    loginId: String,
+    password: String,
+    crossinline fileTransformer: (ByteArray?) -> T,
+    crossinline resultSetter: (T) -> Unit,
+) {
+    val collection = getWebDavCollection("$url/$filename", loginId, password)
+    collection.get(accept = "/", headers = null) { response ->
+        resultSetter(fileTransformer(response.body?.bytes()))
     }
 }
