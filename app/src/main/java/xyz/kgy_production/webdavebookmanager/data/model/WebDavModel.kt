@@ -12,6 +12,7 @@ data class WebDavModel(
     val url: String,
     val loginId: String = "",
     val password: String = "",
+    val folderStructure: String = "",
     val isActive: Boolean = true
 ) {
     private val urlRegex = Regex("^https?://")
