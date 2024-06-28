@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
+import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -22,8 +23,8 @@ class MainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-
         createDevContent()
+        ScanWebDavService.createNotiChannel(this)
     }
 
     private fun createDevContent() {

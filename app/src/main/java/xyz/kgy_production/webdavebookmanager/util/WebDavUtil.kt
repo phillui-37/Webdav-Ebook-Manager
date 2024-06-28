@@ -3,6 +3,7 @@ package xyz.kgy_production.webdavebookmanager.util
 import android.util.Log
 import at.bitfire.dav4jvm.BasicDigestAuthHandler
 import at.bitfire.dav4jvm.DavCollection
+import at.bitfire.dav4jvm.exception.NotFoundException
 import at.bitfire.dav4jvm.property.CreationDate
 import at.bitfire.dav4jvm.property.DisplayName
 import at.bitfire.dav4jvm.property.GetContentLength
@@ -34,7 +35,8 @@ fun getWebDavCollection(url: String, loginId: String, password: String): DavColl
     return DavCollection(client, url.toHttpUrl())
 }
 
-suspend fun getWebDavDirContentList(
+
+fun getWebDavDirContentList(
     url: String,
     loginId: String,
     password: String,
@@ -56,7 +58,7 @@ suspend fun getWebDavDirContentList(
     contentListSetter(result)
 }
 
-suspend fun checkIsWebDavDomainAvailable(url: String, loginId: String, password: String): Boolean {
+fun checkIsWebDavDomainAvailable(url: String, loginId: String, password: String): Boolean {
     try {
         val collection = getWebDavCollection(url, loginId, password)
         collection.propfind(1, DisplayName.NAME) { _, _ -> }
@@ -69,7 +71,7 @@ suspend fun checkIsWebDavDomainAvailable(url: String, loginId: String, password:
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-suspend inline fun <reified T> writeDataToWebDav(
+inline fun <reified T> writeDataToWebDav(
     data: T,
     filename: String,
     url: String,
@@ -83,16 +85,21 @@ suspend inline fun <reified T> writeDataToWebDav(
     }
 }
 
-suspend inline fun <T> getFileFromWebDav(
+inline fun getFileFromWebDav(
     filename: String,
     url: String,
     loginId: String,
     password: String,
-    crossinline fileTransformer: (ByteArray?) -> T,
-    crossinline resultSetter: (T) -> Unit,
+    crossinline resultSetter: (ByteArray?) -> Unit,
 ) {
-    val collection = getWebDavCollection("$url/$filename", loginId, password)
-    collection.get(accept = "/", headers = null) { response ->
-        resultSetter(fileTransformer(response.body?.bytes()))
+    val fileurl = "$url/$filename"
+    try {
+        val collection = getWebDavCollection(fileurl, loginId, password)
+        collection.get(accept = "/", headers = null) { response ->
+            resultSetter(if (response.code == 200) response.body?.bytes() else null)
+        }
+    } catch (e: NotFoundException) {
+      Log.d("getFileFromWebDav", "file $filename not exists")
+      resultSetter(null)
     }
 }

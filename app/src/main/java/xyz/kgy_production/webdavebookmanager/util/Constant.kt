@@ -27,3 +27,7 @@ object MimeType {
 }
 
 const val BOOK_METADATA_CONFIG_FILENAME = ".config.protobuf"
+
+enum class NotificationChannelEnum(val tag: String, val id: Int) {
+    ScanWebDavService("ScanWebDav", 200)
+}

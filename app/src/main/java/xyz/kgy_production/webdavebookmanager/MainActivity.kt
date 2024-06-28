@@ -1,13 +1,18 @@
 package xyz.kgy_production.webdavebookmanager
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,6 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
+import androidx.core.content.PackageManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +44,18 @@ val LocalPrivateStorage: ProvidableCompositionLocal<File?> = staticCompositionLo
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val themeViewModel by viewModels<ThemeViewModel>()
+
+    private val singlePermissionRegister = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        // TODO
+    }
+
+    private fun requireRequiredPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val isGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!isGranted)
+                singlePermissionRegister.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +89,7 @@ class MainActivity : ComponentActivity() {
             }
             subscribeNetworkChange { isNetworkAvailable = it }
         }
+        requireRequiredPermission()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -79,7 +99,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun subscribeNetworkChange(setter: (Boolean) -> Unit) {
+    private fun subscribeNetworkChange(
+        setter: (Boolean) -> Unit
+    ) {
         Log.d("MainAct::subscribeNetworkChange", "start")
         val cm = getSystemService(ConnectivityManager::class.java)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
@@ -87,6 +109,7 @@ class MainActivity : ComponentActivity() {
                 Log.d("MainAct::subscribeNetworkChange", "Network available")
                 setter(true)
             }
+
             override fun onLost(network: Network) {
                 Log.d("MainAct::subscribeNetworkChange", "Network unavailable")
                 setter(false)

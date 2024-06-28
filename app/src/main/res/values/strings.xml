@@ -41,4 +41,6 @@
     <string name="btn_show_menu">Show menu</string>
     <string name="label_to_parent_dir">To parent dir</string>
     <string name="label_common_filter">Filter</string>
+    <string name="noti_scan_webdav_title">Scanning webdav directory</string>
+    <string name="screen_dir_fst_time_dialog_text">Seems this webdav domain has not been scanned. Would you like to scan and create index now?\nPlease ensure you are using Wifi, else the scan will not be started.</string>
 </resources>
