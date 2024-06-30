@@ -15,14 +15,17 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,6 +47,7 @@ import arrow.core.none
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
+import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.matchParentWidth
@@ -139,6 +143,51 @@ fun EditWebDavEntryScreen(
                 isPassword = true
             ) {
                 viewModel.updateModel(model.copy(password = it))
+            }
+
+            Text(text = stringResource(id = R.string.label_webdav_bypass_pattern))
+            model.bypassPattern.forEachIndexed { inputIdx, inputByPassPattern ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextField(
+                        modifier = Modifier.weight(.9f),
+                        value = inputByPassPattern.pattern,
+                        onValueChange = {
+                            viewModel.updateModel(model.copy(
+                                bypassPattern = model.bypassPattern.mapIndexed { _idx, byPassPattern ->
+                                    if (_idx == inputIdx) inputByPassPattern.copy(pattern = it)
+                                    else byPassPattern
+                                }
+                            ))
+                        }
+                    )
+                    Checkbox(
+                        modifier = Modifier.weight(.1f),
+                        checked = inputByPassPattern.isRegex,
+                        onCheckedChange = {
+                            viewModel.updateModel(model.copy(bypassPattern =
+                            model.bypassPattern.mapIndexed { _idx, byPassPattern ->
+                                if (_idx == inputIdx) inputByPassPattern.copy(isRegex = it)
+                                else byPassPattern
+                            }
+                            ))
+                        }
+                    )
+                }
+            }
+            TextButton(onClick = {
+                viewModel.updateModel(
+                    model.copy(
+                        bypassPattern = model.bypassPattern + WebDavModel.ByPassPattern(
+                            "",
+                            false
+                        )
+                    )
+                )
+            }) {
+                Text(text = stringResource(id = R.string.label_webdav_add_bypass_pattern))
             }
         }
     }

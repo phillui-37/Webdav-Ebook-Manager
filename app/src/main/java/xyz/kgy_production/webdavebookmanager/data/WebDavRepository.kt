@@ -13,6 +13,7 @@ interface WebDavRepository {
         url: String,
         loginId: Option<String>,
         password: Option<String>,
+        byPassPattern: List<WebDavModel.ByPassPattern>,
     )
 
     suspend fun createEntry(model: WebDavModel)
@@ -23,7 +24,8 @@ interface WebDavRepository {
         loginId: Option<String>,
         password: Option<String>,
         isActive: Boolean,
-        uuid: String
+        uuid: String,
+        byPassPattern: List<WebDavModel.ByPassPattern>,
     )
 
     suspend fun updateEntry(model: WebDavModel)

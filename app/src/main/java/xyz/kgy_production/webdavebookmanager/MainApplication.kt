@@ -24,7 +24,6 @@ class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         createDevContent()
-        ScanWebDavService.createNotiChannel(this)
     }
 
     private fun createDevContent() {
@@ -39,7 +38,8 @@ class MainApplication : Application() {
                         "Dev Server".toOption(),
                         url,
                         loginId.toOption(),
-                        password.toOption()
+                        password.toOption(),
+                        listOf()
                     )
                 }
             }

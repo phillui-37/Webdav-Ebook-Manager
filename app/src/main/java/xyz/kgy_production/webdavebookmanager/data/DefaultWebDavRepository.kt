@@ -8,6 +8,8 @@ import arrow.core.raise.option
 import arrow.core.toOption
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
@@ -69,6 +71,7 @@ class DefaultWebDavRepository @Inject constructor(
         url: String,
         loginId: Option<String>,
         password: Option<String>,
+        byPassPattern: List<WebDavModel.ByPassPattern>,
     ) {
         withContext(dispatcher) {
             var uuid = UUID.randomUUID().toString()
@@ -83,7 +86,8 @@ class DefaultWebDavRepository @Inject constructor(
                     loginId = _loginId,
                     password = _pwd,
                     isActive = true,
-                    uuid = uuid
+                    uuid = uuid,
+                    bypassPattern = Json.encodeToString(byPassPattern)
                 )
                 dbDAO.insert(webDavEntity)
             }.onNone {
@@ -106,6 +110,7 @@ class DefaultWebDavRepository @Inject constructor(
         password: Option<String>,
         isActive: Boolean,
         uuid: String,
+        byPassPattern: List<WebDavModel.ByPassPattern>,
     ) {
         withContext(dispatcher) {
             option {
@@ -118,7 +123,8 @@ class DefaultWebDavRepository @Inject constructor(
                     loginId = _loginId,
                     password = _pwd,
                     isActive = isActive,
-                    uuid = uuid
+                    uuid = uuid,
+                    bypassPattern = Json.encodeToString(byPassPattern)
                 )
                 dbDAO.upsert(entity)
             }.onNone {

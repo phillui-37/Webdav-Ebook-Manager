@@ -43,4 +43,8 @@
     <string name="label_common_filter">Filter</string>
     <string name="noti_scan_webdav_title">Scanning webdav directory</string>
     <string name="screen_dir_fst_time_dialog_text">Seems this webdav domain has not been scanned. Would you like to scan and create index now?\nPlease ensure you are using Wifi, else the scan will not be started.</string>
+    <string name="label_webdav_bypass_pattern">Bypass Pattern (Check if it is Regex)</string>
+    <string name="label_webdav_add_bypass_pattern">+ Press to add bypass pattern +</string>
+    <string name="snack_start_scan">Scanning Target, screen will keep on until finished</string>
+    <string name="btn_dismiss">Dismiss</string>
 </resources>

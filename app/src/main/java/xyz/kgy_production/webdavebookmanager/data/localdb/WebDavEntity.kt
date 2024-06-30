@@ -13,4 +13,5 @@ data class WebDavEntity(
     @ColumnInfo(name = "login_id") val loginId: String,
     @ColumnInfo(name = "password") val password: String,
     @ColumnInfo(name = "is_active") val isActive: Boolean,
+    @ColumnInfo(name = "bypass_pattern") val bypassPattern: String, // JSON
 )

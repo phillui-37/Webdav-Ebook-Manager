@@ -70,17 +70,28 @@ fun checkIsWebDavDomainAvailable(url: String, loginId: String, password: String)
     }
 }
 
-@OptIn(ExperimentalSerializationApi::class)
-inline fun <reified T> writeDataToWebDav(
-    data: T,
+fun writeDataToWebDav(
+    data: ByteArray,
     filename: String,
     url: String,
     loginId: String,
     password: String,
 ) {
     val collection = getWebDavCollection("$url/$filename", loginId, password)
-    val encoded = ProtoBuf.encodeToByteArray(data)
-    collection.put(encoded.toRequestBody(MimeType.PROTOBUF.toMediaType())) { response ->
+    collection.put(data.toRequestBody(MimeType.PROTOBUF.toMediaType())) { response ->
+        Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+    }
+}
+
+fun writeDataToWebDav(
+    data: String,
+    filename: String,
+    url: String,
+    loginId: String,
+    password: String,
+) {
+    val collection = getWebDavCollection("$url/$filename", loginId, password)
+    collection.put(data.toRequestBody(MimeType.PROTOBUF.toMediaType())) { response ->
         Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
     }
 }

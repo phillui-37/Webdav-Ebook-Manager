@@ -1,68 +1,50 @@
 package xyz.kgy_production.webdavebookmanager.service
 
-import android.app.ForegroundServiceStartNotAllowedException
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
-import android.content.Context
-import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.graphics.Bitmap
-import android.os.Build
+import android.app.job.JobParameters
+import android.app.job.JobService
 import android.util.Log
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
-import androidx.core.app.NotificationCompat
-import androidx.core.app.ServiceCompat
-import androidx.core.graphics.drawable.IconCompat
-import arrow.core.MemoizedDeepRecursiveFunction
 import arrow.core.Option
 import arrow.core.getOrElse
-import arrow.core.raise.fold
 import arrow.core.raise.option
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
 import xyz.kgy_production.webdavebookmanager.MainActivity
-import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
+import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
+import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
-import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
 import java.net.URLDecoder
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
-import kotlin.math.log
 
 @AndroidEntryPoint
-class ScanWebDavService : Service() {
+class ScanWebDavService : JobService() {
     @Inject
     lateinit var webDavRepository: WebDavRepository
-
-    companion object {
-        fun createNotiChannel(ctx: Context) {
-            val ch = NotificationChannel(
-                NotificationChannelEnum.ScanWebDavService.tag,
-                NotificationChannelEnum.ScanWebDavService.tag,
-                NotificationManager.IMPORTANCE_LOW
-            )
-            ch.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            ch.enableLights(false)
-            ch.enableVibration(false)
-            ch.setSound(null, null)
-            val manager = ctx.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(ch)
-        }
-    }
 
     private class Err(msg: String) : RuntimeException("ScanWebDavService: $msg")
 
@@ -76,49 +58,54 @@ class ScanWebDavService : Service() {
         }
     }
 
-    private val contentMapCache = mutableMapOf<String, List<DirectoryViewModel.ContentData>>()
+    private lateinit var baseUrl: String
+    private val pendingCheckingQueue = Channel<GetCheckListParam>()
+    private val fileListQueue = Channel<DirectoryViewModel.ContentData>()
+    private val bookMetaDataLs = mutableListOf<BookMetaData>()
+    private val bookMetaDataLsMutex = Mutex()
+    private val fileCount = AtomicInteger(0)
+    private val doneFileCount = AtomicInteger(0)
+    private val workerThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    private val threadPoolDispatcher =
+        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+            .asCoroutineDispatcher()
+    private val byPassPatterns = mutableListOf<Regex>()
+    private val dirCacheList = mutableListOf<WebDavDirNode>()
 
-    override fun onBind(intent: Intent?) = null
-
-    private fun startForeground() {
-        try {
-            val pIntent = PendingIntent.getActivity(
-                this,
-                NotificationChannelEnum.ScanWebDavService.id,
-                Intent(this,MainActivity::class.java),
-                PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            val noti = NotificationCompat
-                .Builder(this, NotificationChannelEnum.ScanWebDavService.tag)
-                .setOngoing(true)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText(getString(R.string.noti_scan_webdav_title))
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setChannelId(NotificationChannelEnum.ScanWebDavService.tag)
-                .setContentIntent(pIntent)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                noti.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            }
-            startForeground(
-                NotificationChannelEnum.ScanWebDavService.id,
-                noti.build(),
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
-            )
-//            ServiceCompat.startForeground(
-//                this,
-//                NotificationChannelEnum.ScanWebDavService.id,
-//                noti.build(),
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
-//            )
-        } catch (e: Exception) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && e is ForegroundServiceStartNotAllowedException) {
-                // TODO start from background
-            }
+    override fun onStartJob(params: JobParameters?): Boolean {
+        Log.i("ScanWebDavService", "Job start")
+        if (!isNetworkAvailable()) {
+            Log.w("ScanWebDavService", "Network not available")
+            stopSelf()
         }
+        val id = params?.extras?.getInt("id", -1)!!
+        if (id == -1) {
+            Log.e("ScanWebDavService", "id not provided")
+            stopSelf()
+        }
+
+        CoroutineScope(workerThreadDispatcher).launch {
+            val data = webDavRepository.getEntryById(id)
+            data.onNone {
+                Log.w("ScanWebDavService", "id not valid")
+                stopSelf()
+            }.onSome {
+                baseUrl = it.url
+            }
+
+            Log.d("ScanWebDavService", "$data")
+            execute(data)
+        }
+        return true
     }
 
-    private fun execute(data: Option<WebDavModel>) = option {
+    override fun onStopJob(params: JobParameters?): Boolean {
+        Log.i("ScanWebDavService", "Job stop")
+        return false
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun execute(data: Option<WebDavModel>) = option {
         val webDavData = data.bind()
         if (!checkIsWebDavDomainAvailable(
                 webDavData.url,
@@ -128,77 +115,150 @@ class ScanWebDavService : Service() {
         )
             throw Err("'${webDavData.url}' not reachable")
 
-        val bookMetaDataLs = mutableListOf<BookMetaData>()
-        getCheckingList(GetCheckListParam(webDavData.url, webDavData.loginId, webDavData.password))
-            .forEach { webdav ->
-                contentMapCache[webdav.fullUrl]!!
-                    .filter { !it.isDir }
-                    .forEach { book ->
+        Log.d("ScanWebDavService", "Start handling ${webDavData.url}")
 
-                        bookMetaDataLs.add(BookMetaData(
-                            name = book.name,
-                            fileType = book.contentType?.run { "$type/$subtype" }
-                                ?: BookMetaData.NOT_AVAILABLE,
-                            relativePath = book.fullUrl
-                        ))
-                    }
+        webDavData.bypassPattern
+            .map {
+                if (it.isRegex) Regex(it.pattern)
+                else Regex(".*${it.pattern}.*")
+            }
+            .let {
+                byPassPatterns.addAll(it)
+                byPassPatterns.add(Regex(BOOK_METADATA_CONFIG_FILENAME))
             }
 
-        writeDataToWebDav(
-            bookMetaDataLs,
-            BOOK_METADATA_CONFIG_FILENAME,
-            webDavData.url,
-            webDavData.loginId,
-            webDavData.password
+        val dirScanJob = getDirScanJob()
+        val bookMarshalJob = getBookMarshalJob()
+        dirScanJob.start()
+        bookMarshalJob.start()
+
+        pendingCheckingQueue.send(
+            GetCheckListParam(
+                webDavData.url,
+                webDavData.loginId,
+                webDavData.password
+            )
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        CoroutineScope(Dispatchers.IO).launch {
+            var fileCountSnapshot = 0
+            var sameFileCountCounter = 0
+            while (true) {
+                val countNow = fileCount.get()
+                val doneFileCountNow = doneFileCount.get()
+                if (sameFileCountCounter >= 10 && doneFileCountNow == countNow) break
+
+                Log.d(
+                    "ScanWebDavService",
+                    "File count now: $countNow, done file count now: $doneFileCountNow"
+                )
+                if (countNow == fileCountSnapshot) {
+                    sameFileCountCounter++
+                } else {
+                    sameFileCountCounter = 0
+                    fileCountSnapshot = countNow
+                }
+                delay(1000) // check it every one second
+            }
+            Log.d(
+                "ScanWebDavService",
+                "file count $fileCountSnapshot stable now, task can be finished"
+            )
+            dirScanJob.cancel("Done")
+            bookMarshalJob.cancel("Done")
+            writeDataToWebDav(
+//                ProtoBuf.encodeToByteArray(WebDavCacheData(dirCacheList, bookMetaDataLs)),
+                Json.encodeToString(WebDavCacheData(dirCacheList,bookMetaDataLs)),
+                BOOK_METADATA_CONFIG_FILENAME,
+                webDavData.url,
+                webDavData.loginId,
+                webDavData.password
+            )
+            stopSelf()
+            MainActivity.letScreenRest()
+        }
     }.onNone {
         throw Err("id ${data.map { it.id }.getOrElse { -1 }} is not valid")
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!isNetworkAvailable()) {
-            Log.w("ScanWebDavService", "Network not available")
-            stopSelf()
-        }
-        val id = intent?.getIntExtra("id", -1)!!
-        if (id == -1) {
-            Log.e("ScanWebDavService", "id not provided")
-            stopSelf()
-        }
+    private suspend fun updateCheckingList(param: GetCheckListParam) {
+        Log.d("updateCheckingList", "checking '${URLDecoder.decode(param.url, "UTF-8")}'")
+        var ls = listOf<DirectoryViewModel.ContentData>()
+        param.getList { ls = it }
 
-        startForeground()
-        CoroutineScope(Dispatchers.IO).launch {
-            val data = webDavRepository.getEntryById(id)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                data.onNone {
-                    Log.w("ScanWebDavService", "id not valid")
-                    stopSelf()
-                }
+        val currentPath = param.url.replace(baseUrl, "").split("/")
+        val dirCache = WebDavDirNode(
+            URLDecoder.decode(currentPath.last().ifEmpty { "/" }, "UTF-8"),
+            if (currentPath.size == 1) null
+            else if (currentPath.size == 2) "/"
+            else URLDecoder.decode(currentPath.subList(0, currentPath.size - 1).joinToString("/"), "UTF-8"),
+            ls.filter { it.isDir }.map { URLDecoder.decode(it.fullUrl.split("/").last(), "UTF-8") }
+        )
+        dirCacheList.add(dirCache)
+
+        ls = ls.filter { item ->
+            byPassPatterns.all {
+                !it.matches(URLDecoder.decode(item.fullUrl, "UTF-8"))
             }
-            execute(data)
+        }
+        val folders = ls.filter { it.isDir }
+        CoroutineScope(threadPoolDispatcher).launch {
+            folders
+                .forEach {
+                    pendingCheckingQueue.send(
+                        GetCheckListParam(
+                            it.fullUrl,
+                            param.loginId,
+                            param.password
+                        )
+                    )
+                }
+        }
+        val files = ls.filter { !it.isDir }
+        CoroutineScope(threadPoolDispatcher).launch {
+            files
+                .forEach {
+                    fileCount.addAndGet(1)
+                    fileListQueue.send(it)
+                }
         }
 
-        return START_STICKY
+        Log.d(
+            "getCheckingList",
+            "'${
+                URLDecoder.decode(
+                    param.url,
+                    "UTF-8"
+                )
+            }' has ${folders.size} folders and ${files.size} files"
+        )
     }
 
-    private val getCheckingList = MemoizedDeepRecursiveFunction<GetCheckListParam, List<DirectoryViewModel.ContentData>> { param ->
-        Log.d("getCheckingList", "checking '${URLDecoder.decode(param.url, "UTF-8")}'")
-        if (contentMapCache.containsKey(param.url))
-            contentMapCache[param.url]!!
-        else {
-            var ls = listOf<DirectoryViewModel.ContentData>()
-            param.getList { ls = it }
-            val folderCount = ls.count { it.isDir }
-            val fileCount = ls.size - folderCount
+    private fun getDirScanJob(): Deferred<Unit> {
+        return CoroutineScope(threadPoolDispatcher).async {
+            while (true) {
+                val dirUrl = pendingCheckingQueue.receive()
+                Log.d("ScanWebDavService", "Received url ${dirUrl.url} from queue")
+                updateCheckingList(dirUrl)
+            }
+        }
+    }
 
-            Log.d("getCheckingList", "'${URLDecoder.decode(param.url, "UTF-8")}' has $folderCount folders and $fileCount files")
-            contentMapCache[param.url] = ls
-            ls + ls.filter { it.isDir }
-                .flatMap { callRecursive(param.copy(url = it.fullUrl)) }
+    private fun getBookMarshalJob(): Deferred<Unit> {
+        return CoroutineScope(threadPoolDispatcher).async {
+            while (true) {
+                val book = fileListQueue.receive()
+                Log.d("ScanWebDavService", "Received book ${book.name} from queue")
+                bookMetaDataLsMutex.withLock {
+                    bookMetaDataLs.add(BookMetaData(
+                        name = book.name,
+                        fileType = book.contentType?.run { "$type/$subtype" }
+                            ?: BookMetaData.NOT_AVAILABLE,
+                        relativePath = book.fullUrl
+                    ))
+                    doneFileCount.addAndGet(1)
+                }
+            }
         }
     }
 }
