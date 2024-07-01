@@ -6,9 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import android.os.PersistableBundle
-import android.os.PowerManager
-import android.util.Log
-import android.view.WindowManager
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -47,15 +43,11 @@ import arrow.core.Some
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.protobuf.ProtoBuf
 import xyz.kgy_production.webdavebookmanager.MainActivity
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.component.DirectoryTopBar
-import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
@@ -65,7 +57,6 @@ import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
-import xyz.kgy_production.webdavebookmanager.util.isWifiNetwork
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
 import java.net.URLDecoder
@@ -216,7 +207,6 @@ private fun ContentRow(content: DirectoryViewModel.ContentData, pathHandler: (St
     }
 }
 
-@OptIn(ExperimentalSerializationApi::class)
 private fun firstTimeLaunchCheck(
     model: WebDavModel,
     onIsFirstTime: () -> Unit
@@ -228,7 +218,6 @@ private fun firstTimeLaunchCheck(
         model.loginId,
         model.password
     ) { rawData ->
-//        conf = rawData?.let(ProtoBuf::decodeFromByteArray)
         conf = rawData?.let { Json.decodeFromString(it.decodeToString()) }
     }
     if (conf == null) {

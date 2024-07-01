@@ -10,7 +10,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -19,11 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.protobuf.ProtoBuf
 import xyz.kgy_production.webdavebookmanager.MainActivity
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
@@ -104,7 +100,6 @@ class ScanWebDavService : JobService() {
         return false
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     private suspend fun execute(data: Option<WebDavModel>) = option {
         val webDavData = data.bind()
         if (!checkIsWebDavDomainAvailable(
@@ -167,7 +162,6 @@ class ScanWebDavService : JobService() {
             dirScanJob.cancel("Done")
             bookMarshalJob.cancel("Done")
             writeDataToWebDav(
-//                ProtoBuf.encodeToByteArray(WebDavCacheData(dirCacheList, bookMetaDataLs)),
                 Json.encodeToString(WebDavCacheData(dirCacheList,bookMetaDataLs)),
                 BOOK_METADATA_CONFIG_FILENAME,
                 webDavData.url,

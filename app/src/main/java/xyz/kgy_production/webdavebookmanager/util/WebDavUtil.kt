@@ -9,17 +9,11 @@ import at.bitfire.dav4jvm.property.DisplayName
 import at.bitfire.dav4jvm.property.GetContentLength
 import at.bitfire.dav4jvm.property.GetContentType
 import at.bitfire.dav4jvm.property.GetLastModified
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToByteArray
-import kotlinx.serialization.protobuf.ProtoBuf
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
-import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
-import kotlin.math.log
 
 fun getWebDavCollection(url: String, loginId: String, password: String): DavCollection {
     val authHandler = BasicDigestAuthHandler(

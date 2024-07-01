@@ -94,7 +94,6 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtimeCompose)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.jetbrains.kotlinx.serialization.protobuf)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
