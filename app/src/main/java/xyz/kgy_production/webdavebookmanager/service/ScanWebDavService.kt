@@ -4,9 +4,15 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.job.JobInfo
 import android.app.job.JobParameters
+import android.app.job.JobScheduler
 import android.app.job.JobService
+import android.content.ComponentName
+import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.PersistableBundle
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -40,12 +46,35 @@ import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
 import java.net.URLDecoder
+import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class ScanWebDavService : JobService() {
+    companion object {
+        fun startScanService(ctx: Context, id: Int) {
+            val scheduler = ctx.getSystemService(JobScheduler::class.java)
+            val builder = JobInfo.Builder(
+                NotificationChannelEnum.ScanWebDavService.id,
+                ComponentName(ctx, ScanWebDavService::class.java)
+            ).apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    setMinimumLatency(0L)
+                }
+                setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
+                setRequiresBatteryNotLow(true)
+            }
+
+            val bundle = PersistableBundle()
+            bundle.putInt("id", id)
+            builder.setExtras(bundle)
+
+            scheduler.schedule(builder.build())
+        }
+    }
+
     @Inject
     lateinit var webDavRepository: WebDavRepository
 
@@ -174,6 +203,7 @@ class ScanWebDavService : JobService() {
         )
             throw Err("'${webDavData.url}' not reachable")
 
+        MainActivity.keepScreenOn()
         Log.d("ScanWebDavService", "Start handling ${webDavData.url}")
         val cancelNotiAction = sendTaskNotification(webDavData.name.ifEmpty { webDavData.url })
 
@@ -248,13 +278,16 @@ class ScanWebDavService : JobService() {
         val currentPath = param.url.replace(baseUrl, "").split("/")
         val dirCache = WebDavDirNode(
             URLDecoder.decode(currentPath.last().ifEmpty { "/" }, "UTF-8"),
-            if (currentPath.size == 1) null
-            else if (currentPath.size == 2) "/"
-            else URLDecoder.decode(
-                currentPath.subList(0, currentPath.size - 1).joinToString("/"),
-                "UTF-8"
-            ),
-            ls.filter { it.isDir }.map { URLDecoder.decode(it.fullUrl.split("/").last(), "UTF-8") }
+            when (currentPath.size) {
+                1 -> null
+                2 -> "/"
+                else -> URLDecoder.decode(
+                    currentPath.subList(0, currentPath.size - 1).joinToString("/"),
+                    "UTF-8"
+                )
+            },
+            ls.filter { it.isDir }.map { URLDecoder.decode(it.fullUrl.split("/").last(), "UTF-8") },
+            LocalDateTime.now(),
         )
         dirCacheList.add(dirCache)
 
@@ -314,7 +347,8 @@ class ScanWebDavService : JobService() {
                         name = book.name,
                         fileType = book.contentType?.run { "$type/$subtype" }
                             ?: BookMetaData.NOT_AVAILABLE,
-                        relativePath = book.fullUrl
+                        relativePath = book.fullUrl,
+                        lastUpdated = LocalDateTime.now()
                     ))
                     doneFileCount.addAndGet(1)
                 }

@@ -19,6 +19,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -139,6 +140,20 @@ fun EditWebDavEntryScreen(
             ) {
                 viewModel.updateModel(model.copy(password = it))
             }
+            Row{
+                Text(
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                    text = "Open ebook with this app"
+                ) // TODO i18n
+                Row(modifier = Modifier.weight(1.0f)) {}
+                Switch(checked = model.defaultOpenByThis, onCheckedChange = {
+                    viewModel.updateModel(
+                        model.copy(
+                            defaultOpenByThis = it
+                        )
+                    )
+                })
+            }
 
             Text(text = stringResource(id = R.string.label_webdav_bypass_pattern))
             model.bypassPattern.forEachIndexed { inputIdx, inputByPassPattern ->
@@ -194,14 +209,15 @@ private fun BottomBar(
     toSubmit: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
         horizontalArrangement = Arrangement.Absolute.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = toReset, modifier = Modifier.padding(10.dp)) {
+        Button(onClick = toReset, modifier = Modifier.padding(10.dp).weight(1.0f)) {
             Text(text = stringResource(id = R.string.btn_reset))
         }
-        Button(onClick = toSubmit, modifier = Modifier.padding(10.dp)) {
+        Row(modifier = Modifier.weight(1.0f)) {}
+        Button(onClick = toSubmit, modifier = Modifier.padding(10.dp).weight(1.0f)) {
             Text(text = stringResource(id = R.string.btn_submit))
         }
     }

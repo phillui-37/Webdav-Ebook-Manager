@@ -56,6 +56,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.math.roundToInt
 
+/// TODO i18n
+
 private const val BASE_URL = "https://phillui-37.github.io/foliate-js/"
 
 private val chromeClient = object : WebChromeClient() {

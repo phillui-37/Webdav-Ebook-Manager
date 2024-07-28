@@ -1,6 +1,8 @@
 package xyz.kgy_production.webdavebookmanager.data.model
 
 import kotlinx.serialization.Serializable
+import xyz.kgy_production.webdavebookmanager.util.serializer.LocalDateTimeSerializer
+import java.time.LocalDateTime
 
 @Serializable
 data class BookMetaData(
@@ -12,6 +14,8 @@ data class BookMetaData(
     val publisher: String = NOT_FILLED,
     val fileType: String, // from MediaType
     val relativePath: String,
+    @Serializable(with = LocalDateTimeSerializer::class)
+    val lastUpdated: LocalDateTime,
 ) {
     companion object {
         const val NOT_FILLED = "NOT FILLED"

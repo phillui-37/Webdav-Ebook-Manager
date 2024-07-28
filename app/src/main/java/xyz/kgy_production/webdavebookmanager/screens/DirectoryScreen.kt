@@ -1,13 +1,7 @@
 package xyz.kgy_production.webdavebookmanager.screens
 
-import android.app.job.JobInfo
-import android.app.job.JobScheduler
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.os.PersistableBundle
 import android.util.Log
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -47,7 +42,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import xyz.kgy_production.webdavebookmanager.MainActivity
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.component.DirectoryTopBar
@@ -57,10 +51,11 @@ import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
-import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
+import xyz.kgy_production.webdavebookmanager.util.openWithExtApp
 import xyz.kgy_production.webdavebookmanager.util.pipe
+import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
 import java.io.File
@@ -68,6 +63,9 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.file.Files
 import kotlin.io.path.Path
+
+// TODO pull to refresh by network
+// TODO extract logic to viewmodel
 
 @Composable
 fun DirectoryScreen(
@@ -91,6 +89,7 @@ fun DirectoryScreen(
     var dirTree by remember { mutableStateOf<WebDavCacheData.WebDavDirTreeNode?>(null) }
 
     LaunchedEffect(currentPath) {
+        Log.d("DirectoryScreen", "path updated: $currentPath")
         isLoading = true
         contentList = listOf()
         coroutineScope.launch {
@@ -104,11 +103,12 @@ fun DirectoryScreen(
         }
         coroutineScope.launch {
             getWebDavDirContentList(currentPath, model.loginId, model.password) {
+                // TODO need to check network status and conf->current path last updated, not always need to be updated
                 contentList = it
                 isLoading = false
-                // TODO
+                // TODO update conf to latest list
                 conf?.let { _conf ->
-                    conf
+                    conf = _conf
                 }
             }
         }
@@ -142,8 +142,7 @@ fun DirectoryScreen(
                             duration = SnackbarDuration.Indefinite,
                         )
                 }
-                startScanService(ctx, model.id)
-                MainActivity.keepScreenOn()
+                ScanWebDavService.startScanService(ctx, model.id)
             }
         )
 
@@ -196,28 +195,33 @@ fun DirectoryScreen(
         ) {
             items(contentList.filter { it.isDir }) { content ->
                 ContentRow(content = content) {
-                    currentPath = content.fullUrl
+                    Log.d("DirScreen", "Dir onclick: $it")
+                    currentPath = it
                 }
             }
             items(contentList.filter { !it.isDir }) { content ->
                 ContentRow(content = content) {
-                    val dir = ctx.filesDir
-                    val path = "$dir/${content.fullUrl.split("/").last()}"
-                    if (!Files.exists(Path(path))) {
-                        var data: ByteArray? = null
-                        getFileFromWebDav(content.fullUrl, model.loginId, model.password) {
-                            data = it
+                    Log.d("DirScreen", "File onclick: $it")
+                    val paths = it.split("/")
+                    val file = ctx.saveShareFile(
+                        URLDecoder.decode(paths.last(), "utf-8"),
+                        "/${model.uuid}" + URLDecoder.decode(paths.subList(0, paths.size - 1).joinToString("/").replace(model.url, ""), "utf-8")
+                    ) {
+                        var data: ByteArray = byteArrayOf()
+                        runBlocking(Dispatchers.IO) {
+                            getFileFromWebDav(content.fullUrl, model.loginId, model.password) {
+                                data = it ?: byteArrayOf()
+                            }
                         }
-                        if (data != null) {
-                            val outFile = File(path).outputStream()
-                            outFile.write(data)
-                        }
+                        data
                     }
-                    val intent = Intent(Intent.ACTION_VIEW)
-                    intent.setDataAndType(
-                        Uri.parse(path),
-                        content.contentType!!.run { "$type/$subtype" })
-                    ctx.startActivity(Intent.createChooser(intent, "Open Ebook file"))
+                    if (model.defaultOpenByThis) {
+                        // todo nav to reader screen
+                    } else {
+                        ctx.openWithExtApp(
+                            file,
+                            content.contentType!!.run { "$type/$subtype" })
+                    }
                 }
             }
         }
@@ -233,19 +237,17 @@ fun DirectoryScreen(
 }
 
 @Composable
-private fun ContentRow(content: DirectoryViewModel.ContentData, pathHandler: (String) -> Unit) {
+private fun ContentRow(content: DirectoryViewModel.ContentData, onClick: (String) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(10.dp)
             .wrapContentHeight()
             .shadow(5.dp),
-        onClick = {
-
-        }
+        onClick = { onClick(content.fullUrl) }
     ) {
         Row(
-            modifier = Modifier.padding(4.dp, 10.dp)
+            modifier = Modifier.padding(4.dp, 10.dp),
         ) {
             if (content.isDir)
                 Icon(
@@ -257,9 +259,7 @@ private fun ContentRow(content: DirectoryViewModel.ContentData, pathHandler: (St
                     Icons.Filled.FileCopy,
                     stringResource(id = R.string.webdav_content_file)
                 )
-            TextButton(onClick = { pathHandler(content.fullUrl) }) {
-                Text(text = content.name)
-            }
+            Text(text = content.name)
         }
     }
 }
@@ -282,26 +282,6 @@ private fun firstTimeLaunchCheck(
     }
 
     conf
-}
-
-private fun startScanService(ctx: Context, id: Int) {
-    val scheduler = ctx.getSystemService(JobScheduler::class.java)
-    val builder = JobInfo.Builder(
-        NotificationChannelEnum.ScanWebDavService.id,
-        ComponentName(ctx, ScanWebDavService::class.java)
-    ).apply {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            setMinimumLatency(0L)
-        }
-        setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
-        setRequiresBatteryNotLow(true)
-    }
-
-    val bundle = PersistableBundle()
-    bundle.putInt("id", id)
-    builder.setExtras(bundle)
-
-    scheduler.schedule(builder.build())
 }
 
 @Composable

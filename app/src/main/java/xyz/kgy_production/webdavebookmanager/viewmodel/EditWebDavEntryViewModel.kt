@@ -1,5 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,24 +29,30 @@ class EditWebDavEntryViewModel @Inject constructor(
     }
 
     fun updateModel(model: WebDavModel) {
+        Log.d("EditWebDavEntryViewModel", "model updated: $model")
         _data.value = model
     }
 
     fun resetModel() {
+        Log.d("EditWebDavEntryViewModel", "model reset")
         _data.value = originalData
     }
 
     suspend fun addWebDavEntry(): String? {
         val err = _data.value.validate()
-        if (err == null)
+        if (err == null) {
+            Log.d("EditWebDavEntryViewModel", "add model")
             webDavRepository.createEntry(_data.value)
+        }
         return err
     }
 
     suspend fun editWebEntry(): String? {
         val err = _data.value.validate()
-        if (err == null)
+        if (err == null) {
+            Log.d("EditWebDavEntryViewModel", "edit model")
             webDavRepository.updateEntry(_data.value)
+        }
         return err
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,43 +50,56 @@ fun SettingScreen(
                 .then(INTERNAL_VERTICAL_PADDING_MODIFIER)
                 .then(INTERNAL_HORIZONTAL_PADDING_MODIFIER)
         ) {
+            // Theme
             item {
                 Column(modifier = Modifier.fillParentMaxWidth()) {
                     Text(text = stringResource(id = R.string.setting_theme_setting_title))
-                    Row(modifier = Modifier.fillParentMaxWidth()) {
-                        Button(
-                            modifier = Modifier.fillParentMaxWidth(1f / 3),
-                            onClick = {
-                                coroutineScope.launch {
-                                    updateThemeSetting(ThemeOption.AUTO)
-                                }
-                            }
-                        ) {
-                            Text(text = stringResource(id = R.string.theme_mode_auto))
-                        }
-                        Button(
-                            modifier = Modifier.fillParentMaxWidth(1f / 3),
-                            onClick = {
-                                coroutineScope.launch {
-                                    updateThemeSetting(ThemeOption.DARK)
-                                }
-                            }
-                        ) {
-                            Text(text = stringResource(id = R.string.theme_mode_dark))
-                        }
-                        Button(
-                            modifier = Modifier.fillParentMaxWidth(1f / 3),
-                            onClick = {
-                                coroutineScope.launch {
-                                    updateThemeSetting(ThemeOption.LIGHT)
-                                }
-                            }
-                        ) {
-                            Text(text = stringResource(id = R.string.theme_mode_light))
-                        }
-                    }
+                    ThemeButtons(
+                        coroutineScope = coroutineScope,
+                        updateThemeSetting = updateThemeSetting
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+fun LazyItemScope.ThemeButtons(
+    coroutineScope: CoroutineScope,
+    updateThemeSetting: FnUpdateThemeSetting
+) {
+    Row(modifier = Modifier.fillParentMaxWidth()) {
+        Button(
+            modifier = Modifier.fillParentMaxWidth(1f / 3),
+            onClick = {
+                coroutineScope.launch {
+                    updateThemeSetting(ThemeOption.AUTO)
+                }
+            }
+        ) {
+            Text(text = stringResource(id = R.string.theme_mode_auto))
+        }
+        Button(
+            modifier = Modifier.fillParentMaxWidth(1f / 3),
+            onClick = {
+                coroutineScope.launch {
+                    updateThemeSetting(ThemeOption.DARK)
+                }
+            }
+        ) {
+            Text(text = stringResource(id = R.string.theme_mode_dark))
+        }
+        Button(
+            modifier = Modifier.fillParentMaxWidth(1f / 3),
+            onClick = {
+                coroutineScope.launch {
+                    updateThemeSetting(ThemeOption.LIGHT)
+                }
+            }
+        ) {
+            Text(text = stringResource(id = R.string.theme_mode_light))
+        }
+    }
+
 }

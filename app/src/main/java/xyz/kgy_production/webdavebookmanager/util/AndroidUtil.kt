@@ -1,13 +1,40 @@
 package xyz.kgy_production.webdavebookmanager.util
 
 import android.content.Context
+import android.content.Intent
+import android.content.IntentSender
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
-import androidx.compose.ui.graphics.vector.ImageVector
+import android.net.Uri
+import android.util.Log
+import androidx.core.content.FileProvider
+import xyz.kgy_production.webdavebookmanager.BuildConfig
+import xyz.kgy_production.webdavebookmanager.R
+import java.io.File
+
+fun Context.getShareDir() = "$filesDir/share"
+
+fun Context.saveShareFile(data: ByteArray, fileName: String, path: String? = null) = saveShareFile(fileName, path) { data }
+
+fun Context.saveShareFile(fileName: String, path: String? =null, getData: () -> ByteArray): File {
+    val dir = "${getShareDir()}/share".let {
+        if (!path.isNullOrEmpty())
+            if (path.startsWith("/")) "$it$path" else "$it/$path"
+        else
+            it}
+    Log.d("saveShareFile", "dir to save: $dir")
+    File(dir).mkdirs()
+    val file = File(dir, fileName)
+    if (!file.exists()) {
+        file.outputStream().write(getData())
+    }
+    return file
+}
+
+fun Context.removeAllShareFiles() {
+    File(getShareDir()).listFiles()?.forEach { it.deleteRecursively() }
+}
 
 fun Context.isSystemDarkMode() =
     (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
@@ -31,4 +58,19 @@ fun Context.isWifiNetwork(): Boolean {
     val actNw =
         cm.getNetworkCapabilities(networkCapabilities) ?: return false
     return actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+}
+
+
+fun Context.openWithExtApp(file: File, mimeType: String) {
+    val providerUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", file)
+    Log.d("openWithExtApp", "fileUri: $providerUri, mimetype: $mimeType")
+    try {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(providerUri, mimeType)
+            setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, "Open File With", )) // TODO i18n
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 }

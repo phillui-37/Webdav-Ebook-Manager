@@ -19,7 +19,7 @@ android {
     defaultConfig {
         applicationId = "xyz.kgy_production.webdavebookmanager"
         minSdk = 29
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -44,7 +44,6 @@ android {
             resValue("string", "webdavUrl", "")
             resValue("string", "webdavLoginId", "")
             resValue("string", "webdavLoginPassword", "")
-
         }
     }
     compileOptions {
@@ -56,6 +55,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

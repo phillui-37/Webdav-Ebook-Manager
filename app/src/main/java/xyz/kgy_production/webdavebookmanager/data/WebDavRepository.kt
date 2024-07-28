@@ -13,6 +13,7 @@ interface WebDavRepository {
         loginId: String?,
         password: String?,
         byPassPattern: List<WebDavModel.ByPassPattern>,
+        defaultOpenByThis: Boolean,
     )
 
     suspend fun createEntry(model: WebDavModel)
@@ -25,6 +26,7 @@ interface WebDavRepository {
         isActive: Boolean,
         uuid: String,
         byPassPattern: List<WebDavModel.ByPassPattern>,
+        defaultOpenByThis: Boolean,
     )
 
     suspend fun updateEntry(model: WebDavModel)

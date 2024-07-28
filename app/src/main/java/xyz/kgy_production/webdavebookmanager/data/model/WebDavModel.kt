@@ -13,7 +13,8 @@ data class WebDavModel(
     val password: String = "",
     val folderStructure: String = "",
     val isActive: Boolean = true,
-    val bypassPattern: List<ByPassPattern> = listOf()
+    val bypassPattern: List<ByPassPattern> = listOf(),
+    val defaultOpenByThis: Boolean = true,
 ) {
     @Serializable
     data class ByPassPattern(val pattern: String, val isRegex: Boolean)

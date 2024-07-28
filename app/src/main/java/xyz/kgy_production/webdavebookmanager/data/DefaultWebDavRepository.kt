@@ -67,6 +67,7 @@ class DefaultWebDavRepository @Inject constructor(
         loginId: String?,
         password: String?,
         byPassPattern: List<WebDavModel.ByPassPattern>,
+        defaultOpenByThis: Boolean,
     ) {
         var uuid = UUID.randomUUID().toString()
         while (getEntryByUuid(uuid) != null)
@@ -80,7 +81,8 @@ class DefaultWebDavRepository @Inject constructor(
                     password = _pwd,
                     isActive = true,
                     uuid = uuid,
-                    bypassPattern = Json.encodeToString(byPassPattern)
+                    bypassPattern = Json.encodeToString(byPassPattern),
+                    openByThis = defaultOpenByThis,
                 )
                 withContext(dispatcher) {
                     dbDAO.insert(webDavEntity)
@@ -104,6 +106,7 @@ class DefaultWebDavRepository @Inject constructor(
         isActive: Boolean,
         uuid: String,
         byPassPattern: List<WebDavModel.ByPassPattern>,
+        defaultOpenByThis: Boolean,
     ) {
         loginId?.let(String::decrypt)?.let { _loginId ->
             password?.let(String::encrypt)?.let { _pwd ->
@@ -115,7 +118,8 @@ class DefaultWebDavRepository @Inject constructor(
                     password = _pwd,
                     isActive = isActive,
                     uuid = uuid,
-                    bypassPattern = Json.encodeToString(byPassPattern)
+                    bypassPattern = Json.encodeToString(byPassPattern),
+                    openByThis = defaultOpenByThis
                 )
                 withContext(dispatcher) {
                     dbDAO.upsert(entity)

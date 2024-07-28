@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,11 +56,13 @@ import xyz.kgy_production.webdavebookmanager.LocalIsNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.HomeTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.pipe
+import xyz.kgy_production.webdavebookmanager.util.removeAllShareFiles
 import xyz.kgy_production.webdavebookmanager.viewmodel.HomeViewModel
 import java.net.URLDecoder
 
@@ -73,6 +76,8 @@ private data class MenuData(
     val onCancel: () -> Unit,
     val onShowDeleteDialog: () -> Unit,
     val toWebdavDetail: () -> Unit,
+    val toFullScanDir: () -> Unit,
+    val removeShareCache: () -> Unit,
     val finalCb: () -> Unit,
 )
 
@@ -91,6 +96,7 @@ fun HomeScreen(
     val domainList = viewModel.filteredWebdavDomainListFlow.collectAsStateWithLifecycle()
     var isLoading by remember { mutableStateOf(false) }
     var needRefresh by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
 
     LaunchedEffect(needRefresh) {
         if (needRefresh) {
@@ -121,10 +127,14 @@ fun HomeScreen(
 
     menuData?.let { data ->
         MenuDialog(
-            onCancel = data.onCancel,
-            onShowDeleteDialog = data.onShowDeleteDialog,
-            toWebdavDetail = data.toWebdavDetail,
-            finalCb = data.finalCb,
+            MenuData(
+                onCancel = data.onCancel,
+                onShowDeleteDialog = data.onShowDeleteDialog,
+                toWebdavDetail = data.toWebdavDetail,
+                toFullScanDir = data.toFullScanDir,
+                removeShareCache = data.removeShareCache,
+                finalCb = data.finalCb,
+            )
         )
     }
 
@@ -169,6 +179,15 @@ fun HomeScreen(
                                     )
                                 },
                                 toWebdavDetail = { toEditWebDavScreen(model.uuid) },
+                                toFullScanDir = {
+                                    ScanWebDavService.startScanService(
+                                        ctx,
+                                        model.id
+                                    )
+                                },
+                                removeShareCache = {
+                                    ctx.removeAllShareFiles()
+                                },
                                 finalCb = { menuData = null }
                             )
                         },
@@ -185,14 +204,10 @@ fun HomeScreen(
 
 @Composable
 private fun MenuDialog(
-    onCancel: () -> Unit,
-    onShowDeleteDialog: () -> Unit,
-    toWebdavDetail: () -> Unit,
-    finalCb: () -> Unit,
+    data: MenuData,
 ) {
-    // TODO build full index and save to url as protobuf
     Dialog(
-        onDismissRequest = onCancel pipe finalCb
+        onDismissRequest = data.onCancel pipe data.finalCb
     ) {
         Card(
             modifier = Modifier
@@ -210,16 +225,22 @@ private fun MenuDialog(
                     textAlign = TextAlign.Center
                 )
                 TextButton(
-                    onClick = toWebdavDetail pipe finalCb,
+                    onClick = data.toWebdavDetail pipe data.finalCb,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(id = R.string.dialog_webdav_menu_option_edit))
                 }
                 TextButton(
-                    onClick = onShowDeleteDialog pipe finalCb,
+                    onClick = data.onShowDeleteDialog pipe data.finalCb,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(id = R.string.dialog_webdav_menu_option_del))
+                }
+                TextButton(
+                    onClick = data.toFullScanDir pipe data.finalCb,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "Scan whole directory to build index") // TODO i18n
                 }
             }
         }
@@ -367,14 +388,20 @@ private fun Fab(
     }
 }
 
+
+/// Preview
 @Preview
 @Composable
 fun MenuDialogPreview() {
     MenuDialog(
-        onCancel = { },
-        onShowDeleteDialog = { },
-        toWebdavDetail = { },
-        finalCb = { },
+        data = MenuData(
+            onCancel = { },
+            onShowDeleteDialog = { },
+            toWebdavDetail = { },
+            toFullScanDir = {},
+            removeShareCache = {},
+            finalCb = { },
+        )
     )
 }
 

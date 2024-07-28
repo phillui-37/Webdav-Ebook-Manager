@@ -22,7 +22,8 @@ fun WebDavEntity.toModel() = WebDavModel(
     },
     isActive = isActive,
     uuid = uuid,
-    bypassPattern = Json.decodeFromString(bypassPattern)
+    bypassPattern = Json.decodeFromString(bypassPattern),
+    defaultOpenByThis = openByThis
 )
 
 fun WebDavModel.toEntity() = WebDavEntity(
@@ -39,5 +40,6 @@ fun WebDavModel.toEntity() = WebDavEntity(
     },
     isActive = isActive,
     uuid = uuid,
-    bypassPattern = Json.encodeToString(bypassPattern)
+    bypassPattern = Json.encodeToString(bypassPattern),
+    openByThis = defaultOpenByThis
 )

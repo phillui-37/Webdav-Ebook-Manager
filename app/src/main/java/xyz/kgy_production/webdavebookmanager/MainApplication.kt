@@ -3,6 +3,7 @@ package xyz.kgy_production.webdavebookmanager
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import android.webkit.WebView
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,7 @@ class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         createDevContent()
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
     }
 
     private fun createDevContent() {
@@ -37,7 +39,8 @@ class MainApplication : Application() {
                         url,
                         loginId,
                         password,
-                        listOf()
+                        listOf(),
+                        true
                     )
                 }
             }
