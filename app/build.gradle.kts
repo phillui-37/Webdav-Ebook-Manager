@@ -85,9 +85,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.hilt)
     ksp(libs.hilt.compiler)
-    implementation(libs.arrow.core)
-    implementation(libs.arrow.fx.coroutines)
-    ksp(libs.arrow.optics.ksp.plugin)
     implementation(libs.accompanist.drawablepainter) // for drawable to painter
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.runtime.livedata)
@@ -95,6 +92,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtimeCompose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
 

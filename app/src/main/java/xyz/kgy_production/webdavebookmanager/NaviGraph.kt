@@ -15,8 +15,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import arrow.core.Some
-import arrow.core.none
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
@@ -25,8 +23,6 @@ import xyz.kgy_production.webdavebookmanager.screens.EditWebDavEntryScreen
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
 import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
-import java.net.URLDecoder
-import java.net.URLEncoder
 
 @Composable
 fun NaviGraph(
@@ -50,7 +46,7 @@ fun NaviGraph(
             AppModalDrawer(drawerState, currentRoute, naviActions) {
                 HomeScreen(
                     toEditWebDavScreen = {
-                        naviActions.navigateToAddWebdavEntry(it.getOrNull())
+                        naviActions.navigateToAddWebdavEntry(it)
                     },
                     toDirectoryScreen = {
                         naviActions.navigateToDirectory(it)
@@ -79,8 +75,8 @@ fun NaviGraph(
             )
         ) { entry ->
             val uuid = when (val it = entry.arguments?.getString(RouteArgs.EditWebDavEntry.UUID)) {
-                "", null -> none()
-                else -> Some(it)
+                "", null -> null
+                else -> it
             }
             EditWebDavEntryScreen(
                 uuid = uuid,

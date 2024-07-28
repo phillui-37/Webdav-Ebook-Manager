@@ -1,12 +1,9 @@
 package xyz.kgy_production.webdavebookmanager.data
 
 import android.util.Log
-import arrow.core.Option
-import arrow.core.getOrElse
-import arrow.core.none
-import arrow.core.raise.option
-import arrow.core.toOption
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,56 +29,52 @@ class DefaultWebDavRepository @Inject constructor(
         }
     }
 
-    override suspend fun getEntryById(id: Int): Option<WebDavModel> {
+    override suspend fun getEntryById(id: Int): WebDavModel? {
         return withContext(dispatcher) {
-            dbDAO.getById(id)?.toModel().toOption()
+            dbDAO.getById(id)?.toModel()
         }
     }
 
-    override suspend fun getEntryByUuid(uuid: String): Option<WebDavModel> {
+    override suspend fun getEntryByUuid(uuid: String): WebDavModel? {
         return withContext(dispatcher) {
-            dbDAO.getByUuid(uuid)?.toModel().toOption()
+            dbDAO.getByUuid(uuid)?.toModel()
         }
     }
 
     override suspend fun getEntryByUrlAndLoginId(
         url: String,
         loginId: String
-    ): Option<WebDavModel> {
+    ): WebDavModel? {
         return withContext(dispatcher) {
             dbDAO.getByUrl(url)
                 .firstOrNull {
-                    val _loginId = it.loginId.decrypt()
-                        .onNone {
-                            Log.e(
-                                "WebDavRepo::getEntryByUrlAndLoginId",
-                                "Login id decrypt error"
-                            )
-                        }
-                        .getOrElse { "" }
+                    val _loginId = it.loginId.decrypt() ?: run {
+                        Log.e(
+                            "WebDavRepo::getEntryByUrlAndLoginId",
+                            "Login id decrypt error"
+                        )
+                        ""
+                    }
                     _loginId == loginId
                 }
                 ?.toModel()
-                .toOption()
         }
     }
 
     override suspend fun createEntry(
-        name: Option<String>,
+        name: String?,
         url: String,
-        loginId: Option<String>,
-        password: Option<String>,
+        loginId: String?,
+        password: String?,
         byPassPattern: List<WebDavModel.ByPassPattern>,
     ) {
-        withContext(dispatcher) {
-            var uuid = UUID.randomUUID().toString()
-            while (getEntryByUuid(uuid).isSome())
-                uuid = UUID.randomUUID().toString()
-            option {
-                val _loginId = loginId.flatMap(String::encrypt).bind()
-                val _pwd = password.flatMap(String::encrypt).bind()
+        var uuid = UUID.randomUUID().toString()
+        while (getEntryByUuid(uuid) != null)
+            uuid = UUID.randomUUID().toString()
+        loginId?.let(String::encrypt)?.let { _loginId ->
+            password?.let(String::encrypt)?.let { _pwd ->
                 val webDavEntity = WebDavEntity(
-                    name = name.getOrElse { "" },
+                    name = name ?: "",
                     url = url,
                     loginId = _loginId,
                     password = _pwd,
@@ -89,11 +82,11 @@ class DefaultWebDavRepository @Inject constructor(
                     uuid = uuid,
                     bypassPattern = Json.encodeToString(byPassPattern)
                 )
-                dbDAO.insert(webDavEntity)
-            }.onNone {
-                Log.e("WebDavRepo::createEntry", "Encrypt fail")
-            }
-        }
+                withContext(dispatcher) {
+                    dbDAO.insert(webDavEntity)
+                }
+            } ?: Log.e("WebDavRepo::createEntry", "Encrypt fail")
+        } ?: Log.e("WebDavRepo::createEntry", "Encrypt fail")
     }
 
     override suspend fun createEntry(model: WebDavModel) {
@@ -104,21 +97,19 @@ class DefaultWebDavRepository @Inject constructor(
 
     override suspend fun updateEntry(
         id: Int,
-        name: Option<String>,
+        name: String?,
         url: String,
-        loginId: Option<String>,
-        password: Option<String>,
+        loginId: String?,
+        password: String?,
         isActive: Boolean,
         uuid: String,
         byPassPattern: List<WebDavModel.ByPassPattern>,
     ) {
-        withContext(dispatcher) {
-            option {
-                val _loginId = loginId.flatMap(String::decrypt).bind()
-                val _pwd = password.flatMap(String::decrypt).bind()
+        loginId?.let(String::decrypt)?.let { _loginId ->
+            password?.let(String::encrypt)?.let { _pwd ->
                 val entity = WebDavEntity(
                     id = id,
-                    name = name.getOrElse { "" },
+                    name = name ?: "",
                     url = url,
                     loginId = _loginId,
                     password = _pwd,
@@ -126,47 +117,42 @@ class DefaultWebDavRepository @Inject constructor(
                     uuid = uuid,
                     bypassPattern = Json.encodeToString(byPassPattern)
                 )
-                dbDAO.upsert(entity)
-            }.onNone {
-                Log.e("WebDavRepo::createEntry", "Decrypt fail")
-            }
-        }
+                withContext(dispatcher) {
+                    dbDAO.upsert(entity)
+                }
+            } ?: Log.e("WebDavRepo::createEntry", "Decrypt fail")
+        } ?: Log.e("WebDavRepo::createEntry", "Decrypt fail")
     }
 
     override suspend fun updateEntry(model: WebDavModel) {
-        withContext(dispatcher) {
-            option {
-                getEntryById(model.id).bind()
+        getEntryById(model.id)?.let {
+            withContext(dispatcher) {
                 dbDAO.upsert(model.toEntity())
             }
-        }.onNone { Log.w("WebDavRepo::updateEntry", "id not exists, op has stopped") }
+        } ?: Log.w("WebDavRepo::updateEntry", "id not exists, op has stopped")
     }
 
     override suspend fun deactivateEntry(id: Int) {
-        withContext(dispatcher) {
-            option {
-                getEntryById(id).bind()
+        getEntryById(id)?.let {
+            withContext(dispatcher) {
                 dbDAO.setIsActive(id, false)
             }
-        }.onNone { Log.w("WebDavRepo::deactivateEntry", "id not exists, op has stopped") }
+        } ?: Log.w("WebDavRepo::deactivateEntry", "id not exists, op has stopped")
     }
 
     override suspend fun activateEntry(id: Int) {
-        withContext(dispatcher) {
-            option {
-                getEntryById(id).bind()
+        getEntryById(id)?.let {
+            withContext(dispatcher) {
                 dbDAO.setIsActive(id, true)
             }
-        }.onNone { Log.w("WebDavRepo::activateEntry", "id not exists, op has stopped") }
+        } ?: Log.w("WebDavRepo::activateEntry", "id not exists, op has stopped")
     }
 
     override suspend fun deleteEntry(id: Int) {
-        withContext(dispatcher) {
-            option {
-                getEntryById(id).bind()
+        getEntryById(id)?.let {
+            withContext(dispatcher) {
                 dbDAO.deleteById(id)
             }
-        }.onNone { Log.w("WebDavRepo::deleteEntry", "id not exists, op has stopped") }
+        } ?: Log.w("WebDavRepo::deleteEntry", "id not exists, op has stopped")
     }
-
 }

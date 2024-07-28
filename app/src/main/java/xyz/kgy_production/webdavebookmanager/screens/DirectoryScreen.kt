@@ -4,8 +4,11 @@ import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.PersistableBundle
+import android.util.Log
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,10 +42,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import arrow.core.Some
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.MainActivity
 import xyz.kgy_production.webdavebookmanager.R
@@ -58,8 +61,13 @@ import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.pipe
+import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
+import java.io.File
 import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.file.Files
+import kotlin.io.path.Path
 
 @Composable
 fun DirectoryScreen(
@@ -68,10 +76,9 @@ fun DirectoryScreen(
     viewModel: DirectoryViewModel = hiltViewModel(),
 ) {
     // TODO search, filter<-need remote data(protobuf)<-tag/series...
-    // TODO long press -> rename
-    val model: WebDavModel
-    runBlocking(Dispatchers.IO) {
-        model = viewModel.getWebDavModel(id).getOrNull()!!
+    // TODO long press -> rename, add dir, upload file
+    val model = runBlocking(Dispatchers.IO) {
+        viewModel.getWebDavModel(id)!!
     }
     var currentPath by remember { mutableStateOf(model.url) }
     var contentList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>>(listOf()) }
@@ -80,14 +87,45 @@ fun DirectoryScreen(
     var showFirstTimeDialog by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     val snackBarHostState = remember { SnackbarHostState() }
+    var conf by remember { mutableStateOf<WebDavCacheData?>(null) }
+    var dirTree by remember { mutableStateOf<WebDavCacheData.WebDavDirTreeNode?>(null) }
 
     LaunchedEffect(currentPath) {
         isLoading = true
         contentList = listOf()
         coroutineScope.launch {
+            dirTree?.let { tree ->
+                tree.search(
+                    URLEncoder.encode(currentPath, "UTF-8").replace(model.url, "")
+                )?.let {
+                    contentList = it.children.map { it.toContentData(model.url) }
+                }
+            }
+        }
+        coroutineScope.launch {
             getWebDavDirContentList(currentPath, model.loginId, model.password) {
                 contentList = it
                 isLoading = false
+                // TODO
+                conf?.let { _conf ->
+                    conf
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(conf) {
+        conf?.let {
+            dirTree = it.dirToTree()
+            coroutineScope.launch {
+                writeDataToWebDav(
+                    Json.encodeToString(it),
+                    BOOK_METADATA_CONFIG_FILENAME,
+                    model.url,
+                    model.loginId,
+                    model.password,
+                    true,
+                )
             }
         }
     }
@@ -115,8 +153,8 @@ fun DirectoryScreen(
                 CommonTopBar(
                     title = stringResource(id = R.string.screen_dir_title),
                     onBack = onBack,
-                    onSearch = Some {
-
+                    onSearch = {
+                        // TODO
                     }
                 )
             else
@@ -163,7 +201,23 @@ fun DirectoryScreen(
             }
             items(contentList.filter { !it.isDir }) { content ->
                 ContentRow(content = content) {
-                    // TODO dl and open file
+                    val dir = ctx.filesDir
+                    val path = "$dir/${content.fullUrl.split("/").last()}"
+                    if (!Files.exists(Path(path))) {
+                        var data: ByteArray? = null
+                        getFileFromWebDav(content.fullUrl, model.loginId, model.password) {
+                            data = it
+                        }
+                        if (data != null) {
+                            val outFile = File(path).outputStream()
+                            outFile.write(data)
+                        }
+                    }
+                    val intent = Intent(Intent.ACTION_VIEW)
+                    intent.setDataAndType(
+                        Uri.parse(path),
+                        content.contentType!!.run { "$type/$subtype" })
+                    ctx.startActivity(Intent.createChooser(intent, "Open Ebook file"))
                 }
             }
         }
@@ -171,7 +225,8 @@ fun DirectoryScreen(
 
     LaunchedEffect(Unit) {
         if (model.url == currentPath)
-            firstTimeLaunchCheck(model) {
+            conf = firstTimeLaunchCheck(model) {
+                Log.d("DirScreen", "first time launch for ")
                 showFirstTimeDialog = true
             }
     }
@@ -202,7 +257,9 @@ private fun ContentRow(content: DirectoryViewModel.ContentData, pathHandler: (St
                     Icons.Filled.FileCopy,
                     stringResource(id = R.string.webdav_content_file)
                 )
-            Text(text = content.name)
+            TextButton(onClick = { pathHandler(content.fullUrl) }) {
+                Text(text = content.name)
+            }
         }
     }
 }
@@ -223,11 +280,16 @@ private fun firstTimeLaunchCheck(
     if (conf == null) {
         onIsFirstTime()
     }
+
+    conf
 }
 
 private fun startScanService(ctx: Context, id: Int) {
     val scheduler = ctx.getSystemService(JobScheduler::class.java)
-    val builder = JobInfo.Builder(NotificationChannelEnum.ScanWebDavService.id, ComponentName(ctx, ScanWebDavService::class.java)).apply {
+    val builder = JobInfo.Builder(
+        NotificationChannelEnum.ScanWebDavService.id,
+        ComponentName(ctx, ScanWebDavService::class.java)
+    ).apply {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             setMinimumLatency(0L)
         }

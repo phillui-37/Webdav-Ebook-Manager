@@ -15,9 +15,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import arrow.core.Option
-import arrow.core.none
-import arrow.core.raise.option
 import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.ui.theme.TOP_BAR_DARK_MODIFIER
@@ -85,7 +82,7 @@ fun SettingTopBar(
 fun CommonTopBar(
     title: String,
     onBack: () -> Unit,
-    onSearch: Option<(String) -> Unit> = none()
+    onSearch: ((String) -> Unit)? = null
 ) {
     val isDarkTheme = LocalIsDarkTheme.current
     TopAppBar(
@@ -97,7 +94,7 @@ fun CommonTopBar(
         },
         modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER,
         actions = {
-            onSearch.onSome { SearchView(onSearch = it) }
+            onSearch?.let { SearchView(onSearch = it) }
         }
     )
 }

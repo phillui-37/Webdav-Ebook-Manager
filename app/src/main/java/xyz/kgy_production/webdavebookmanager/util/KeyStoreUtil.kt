@@ -3,7 +3,6 @@ package xyz.kgy_production.webdavebookmanager.util
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import arrow.core.Either
 import java.security.KeyStore
 import java.security.KeyStore.SecretKeyEntry
 import java.security.KeyStoreException
@@ -22,35 +21,31 @@ private fun getKey(): SecretKey =
     (getStore().getEntry(KEY_ALIAS, null) as? SecretKeyEntry)
         ?.secretKey ?: createKeys()
 
+fun encrypt(text: String): String {
+    if (text.isEmpty()) throw RuntimeException("Empty String cannot be encrypted")
 
-fun encrypt(text: String): Either<Throwable, String> {
-    if (text.isEmpty()) return Either.Left(RuntimeException("Empty String cannot be encrypted"))
+    val cipher = Cipher.getInstance(Encryption.TRANSFORMATION)
+    val key = getKey()
+    cipher.init(Cipher.ENCRYPT_MODE, key)
+    val iv = Base64.encodeToString(cipher.iv, Base64.DEFAULT)
+    val digested = Base64.encodeToString(cipher.doFinal(text.toByteArray()), Base64.DEFAULT)
 
-    return Either.catch {
-        val cipher = Cipher.getInstance(Encryption.TRANSFORMATION)
-        val key = getKey()
-        cipher.init(Cipher.ENCRYPT_MODE, key)
-        val iv = Base64.encodeToString(cipher.iv, Base64.DEFAULT)
-        val digested = Base64.encodeToString(cipher.doFinal(text.toByteArray()), Base64.DEFAULT)
-
-        "$iv;$digested"
-    }
+    return "$iv;$digested"
 }
 
-fun decrypt(text: String): Either<Throwable, String> {
-    if (text.isEmpty()) return Either.Left(RuntimeException("Empty String cannot be decrypted"))
-    if (!text.contains(";")) return Either.Left(RuntimeException("Invalid encrypted String"))
+fun decrypt(text: String): String {
+    if (text.isEmpty()) throw RuntimeException("Empty String cannot be decrypted")
+    if (!text.contains(";")) throw RuntimeException("Invalid encrypted String")
     val (iv, content) = text.split(";").map { Base64.decode(it, Base64.DEFAULT) }
 
-    return Either.catch {
-        val cipher = Cipher.getInstance(Encryption.TRANSFORMATION)
-        val key = getKey()
-        val ivSpec = IvParameterSpec(iv)
-        cipher.init(Cipher.DECRYPT_MODE, key, ivSpec)
-        val digested = cipher.doFinal(content)
+    val cipher = Cipher.getInstance(Encryption.TRANSFORMATION)
+    val key = getKey()
+    val ivSpec = IvParameterSpec(iv)
+    cipher.init(Cipher.DECRYPT_MODE, key, ivSpec)
+    val digested = cipher.doFinal(content)
 
-        String(digested)
-    }
+    return String(digested)
+
 }
 
 private fun createKeys(): SecretKey {

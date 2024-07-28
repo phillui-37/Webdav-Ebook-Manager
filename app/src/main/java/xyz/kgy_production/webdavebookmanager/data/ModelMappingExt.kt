@@ -1,7 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.data
 
 import android.util.Log
-import arrow.core.getOrElse
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
@@ -13,8 +12,14 @@ fun WebDavEntity.toModel() = WebDavModel(
     id = id,
     name = name,
     url = url,
-    loginId = loginId.decrypt().onNone { Log.e("Webdav:Entity->Model", "Decrypt fail") }.getOrElse { "" },
-    password = password.decrypt().onNone { Log.e("Webdav:Entity->Model", "Decrypt fail") }.getOrElse { "" },
+    loginId = loginId.decrypt()?: run {
+        Log.e("Webdav:Entity->Model", "Decrypt fail")
+        ""
+    },
+    password = password.decrypt()?: run {
+        Log.e("Webdav:Entity->Model", "Decrypt fail")
+        ""
+    },
     isActive = isActive,
     uuid = uuid,
     bypassPattern = Json.decodeFromString(bypassPattern)
@@ -24,8 +29,14 @@ fun WebDavModel.toEntity() = WebDavEntity(
     id = id,
     name = name,
     url = url,
-    loginId = loginId.encrypt().onNone { Log.e("Webdav:Model->Entity", "Encrypt fail") }.getOrElse { "" },
-    password = password.encrypt().onNone { Log.e("Webdav:Model->Entity", "Encrypt fail") }.getOrElse { "" },
+    loginId = loginId.encrypt() ?: run {
+        Log.e("Webdav:Model->Entity", "Encrypt fail")
+        ""
+    },
+    password = password.encrypt() ?: run {
+        Log.e("Webdav:Model->Entity", "Encrypt fail")
+        ""
+    },
     isActive = isActive,
     uuid = uuid,
     bypassPattern = Json.encodeToString(bypassPattern)

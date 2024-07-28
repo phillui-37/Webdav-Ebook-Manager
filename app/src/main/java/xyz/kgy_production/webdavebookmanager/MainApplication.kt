@@ -2,15 +2,13 @@ package xyz.kgy_production.webdavebookmanager
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.preferencesDataStore
-import arrow.core.Some
-import arrow.core.toOption
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
-import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -33,12 +31,12 @@ class MainApplication : Application() {
 
         if (arrayOf(url, loginId, password).all { it.isNotEmpty() }) {
             CoroutineScope(Dispatchers.IO).launch {
-                if (webDavRepository.getEntryByUrlAndLoginId(url, loginId).isNone()) {
+                if (webDavRepository.getEntryByUrlAndLoginId(url, loginId) == null) {
                     webDavRepository.createEntry(
-                        "Dev Server".toOption(),
+                        "Dev Server",
                         url,
-                        loginId.toOption(),
-                        password.toOption(),
+                        loginId,
+                        password,
                         listOf()
                     )
                 }

@@ -1,11 +1,16 @@
 package xyz.kgy_production.webdavebookmanager.service
 
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.job.JobParameters
 import android.app.job.JobService
+import android.content.pm.PackageManager
 import android.util.Log
-import arrow.core.Option
-import arrow.core.getOrElse
-import arrow.core.raise.option
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -21,12 +26,14 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.MainActivity
+import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
+import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
@@ -43,6 +50,8 @@ class ScanWebDavService : JobService() {
     lateinit var webDavRepository: WebDavRepository
 
     private class Err(msg: String) : RuntimeException("ScanWebDavService: $msg")
+
+    private var noti: Notification? = null
 
     private data class GetCheckListParam(
         val url: String,
@@ -82,11 +91,11 @@ class ScanWebDavService : JobService() {
 
         CoroutineScope(workerThreadDispatcher).launch {
             val data = webDavRepository.getEntryById(id)
-            data.onNone {
+            data?.let {
+                baseUrl = it.url
+            } ?: run {
                 Log.w("ScanWebDavService", "id not valid")
                 stopSelf()
-            }.onSome {
-                baseUrl = it.url
             }
 
             Log.d("ScanWebDavService", "$data")
@@ -100,8 +109,63 @@ class ScanWebDavService : JobService() {
         return false
     }
 
-    private suspend fun execute(data: Option<WebDavModel>) = option {
-        val webDavData = data.bind()
+    private fun createNotificationChannel() {
+        val name = NotificationChannelEnum.ScanWebDavService.tag
+        val descriptionText = "Background webdav dir scan service notification"
+        val importance = NotificationManager.IMPORTANCE_LOW
+        val channel = NotificationChannel(
+            name,
+            name,
+            importance
+        ).apply {
+            description = descriptionText
+        }
+        // Register the channel with the system.
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun postNoti(noti: Notification) {
+        with(NotificationManagerCompat.from(this)) {
+            if (ActivityCompat.checkSelfPermission(
+                    this@ScanWebDavService,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return@with
+            }
+            notify(NotificationChannelEnum.ScanWebDavService.id, noti)
+        }
+    }
+
+    private fun sendTaskNotification(dirName: String): () -> Unit {
+        createNotificationChannel()
+        val builder =
+            NotificationCompat.Builder(this, NotificationChannelEnum.ScanWebDavService.tag)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setAutoCancel(false)
+                .setContentTitle(resources.getString(R.string.app_name))
+                .setContentText("Scanning $dirName")
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+        noti = builder.build()
+        postNoti(noti!!)
+        return {
+            NotificationManagerCompat.from(this)
+                .cancel(NotificationChannelEnum.ScanWebDavService.id)
+        }
+    }
+
+    private fun checkAndRecoverNoti() {
+        getSystemService(NotificationManager::class.java)
+            .activeNotifications
+            .filter { it.id == NotificationChannelEnum.ScanWebDavService.id && it.tag == NotificationChannelEnum.ScanWebDavService.tag }
+            .ifEmpty {
+                postNoti(noti!!)
+            }
+    }
+
+    private suspend fun execute(data: WebDavModel?) = data?.let { webDavData ->
         if (!checkIsWebDavDomainAvailable(
                 webDavData.url,
                 webDavData.loginId,
@@ -111,6 +175,7 @@ class ScanWebDavService : JobService() {
             throw Err("'${webDavData.url}' not reachable")
 
         Log.d("ScanWebDavService", "Start handling ${webDavData.url}")
+        val cancelNotiAction = sendTaskNotification(webDavData.name.ifEmpty { webDavData.url })
 
         webDavData.bypassPattern
             .map {
@@ -139,6 +204,7 @@ class ScanWebDavService : JobService() {
             var fileCountSnapshot = 0
             var sameFileCountCounter = 0
             while (true) {
+                checkAndRecoverNoti()
                 val countNow = fileCount.get()
                 val doneFileCountNow = doneFileCount.get()
                 if (sameFileCountCounter >= 10 && doneFileCountNow == countNow) break
@@ -162,18 +228,17 @@ class ScanWebDavService : JobService() {
             dirScanJob.cancel("Done")
             bookMarshalJob.cancel("Done")
             writeDataToWebDav(
-                Json.encodeToString(WebDavCacheData(dirCacheList,bookMetaDataLs)),
+                Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs)),
                 BOOK_METADATA_CONFIG_FILENAME,
                 webDavData.url,
                 webDavData.loginId,
                 webDavData.password
             )
+            cancelNotiAction()
             stopSelf()
             MainActivity.letScreenRest()
         }
-    }.onNone {
-        throw Err("id ${data.map { it.id }.getOrElse { -1 }} is not valid")
-    }
+    } ?: throw Err("null data is provided")
 
     private suspend fun updateCheckingList(param: GetCheckListParam) {
         Log.d("updateCheckingList", "checking '${URLDecoder.decode(param.url, "UTF-8")}'")
@@ -185,7 +250,10 @@ class ScanWebDavService : JobService() {
             URLDecoder.decode(currentPath.last().ifEmpty { "/" }, "UTF-8"),
             if (currentPath.size == 1) null
             else if (currentPath.size == 2) "/"
-            else URLDecoder.decode(currentPath.subList(0, currentPath.size - 1).joinToString("/"), "UTF-8"),
+            else URLDecoder.decode(
+                currentPath.subList(0, currentPath.size - 1).joinToString("/"),
+                "UTF-8"
+            ),
             ls.filter { it.isDir }.map { URLDecoder.decode(it.fullUrl.split("/").last(), "UTF-8") }
         )
         dirCacheList.add(dirCache)
@@ -197,24 +265,22 @@ class ScanWebDavService : JobService() {
         }
         val folders = ls.filter { it.isDir }
         CoroutineScope(threadPoolDispatcher).launch {
-            folders
-                .forEach {
-                    pendingCheckingQueue.send(
-                        GetCheckListParam(
-                            it.fullUrl,
-                            param.loginId,
-                            param.password
-                        )
+            folders.forEach {
+                pendingCheckingQueue.send(
+                    GetCheckListParam(
+                        it.fullUrl,
+                        param.loginId,
+                        param.password
                     )
-                }
+                )
+            }
         }
         val files = ls.filter { !it.isDir }
         CoroutineScope(threadPoolDispatcher).launch {
-            files
-                .forEach {
-                    fileCount.addAndGet(1)
-                    fileListQueue.send(it)
-                }
+            files.forEach {
+                fileCount.addAndGet(1)
+                fileListQueue.send(it)
+            }
         }
 
         Log.d(

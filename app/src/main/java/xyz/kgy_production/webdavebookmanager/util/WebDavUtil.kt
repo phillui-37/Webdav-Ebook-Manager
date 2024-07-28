@@ -3,6 +3,7 @@ package xyz.kgy_production.webdavebookmanager.util
 import android.util.Log
 import at.bitfire.dav4jvm.BasicDigestAuthHandler
 import at.bitfire.dav4jvm.DavCollection
+import at.bitfire.dav4jvm.exception.ConflictException
 import at.bitfire.dav4jvm.exception.NotFoundException
 import at.bitfire.dav4jvm.property.CreationDate
 import at.bitfire.dav4jvm.property.DisplayName
@@ -72,7 +73,7 @@ fun writeDataToWebDav(
     password: String,
 ) {
     val collection = getWebDavCollection("$url/$filename", loginId, password)
-    collection.put(data.toRequestBody(MimeType.PROTOBUF.toMediaType())) { response ->
+    collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
         Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
     }
 }
@@ -83,10 +84,24 @@ fun writeDataToWebDav(
     url: String,
     loginId: String,
     password: String,
+    overwrite: Boolean = false,
 ) {
     val collection = getWebDavCollection("$url/$filename", loginId, password)
-    collection.put(data.toRequestBody(MimeType.PROTOBUF.toMediaType())) { response ->
-        Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+    try {
+        collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
+            Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+        }
+    } catch (e: ConflictException) {
+        if (overwrite) {
+            collection.delete {response ->
+                Log.d("writeBookMetaDatasToWebDav", "delete $filename with response ${response.code}")
+            }
+            collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
+                Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+            }
+        } else {
+            Log.e("WebDavUtil", "file $filename has conflict, cannot run data to it")
+        }
     }
 }
 
@@ -106,5 +121,22 @@ inline fun getFileFromWebDav(
     } catch (e: NotFoundException) {
       Log.d("getFileFromWebDav", "file $filename not exists")
       resultSetter(null)
+    }
+}
+
+inline fun getFileFromWebDav(
+    fullUrl: String,
+    loginId: String,
+    password: String,
+    crossinline resultSetter: (ByteArray?) -> Unit,
+) {
+    try {
+        val collection = getWebDavCollection(fullUrl, loginId, password)
+        collection.get(accept = "/", headers = null) { response ->
+            resultSetter(if (response.code == 200) response.body?.bytes() else null)
+        }
+    } catch (e: NotFoundException) {
+        Log.d("getFileFromWebDav", "file $fullUrl not exists")
+        resultSetter(null)
     }
 }

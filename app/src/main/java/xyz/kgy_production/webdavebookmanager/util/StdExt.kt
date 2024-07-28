@@ -4,9 +4,6 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
-import arrow.core.Either
-import arrow.core.Option
-import arrow.core.toOption
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,20 +12,16 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-fun String.encrypt(): Option<String> = when (val result = encrypt(this)) {
-    is Either.Right<*> -> result.getOrNull().toOption()
-    else -> {
-        result.leftOrNull()!!.printStackTrace()
-        arrow.core.none()
-    }
+fun String.encrypt(): String? = try {
+    encrypt(this)
+} catch (e: Exception) {
+    null
 }
 
-fun String.decrypt(): Option<String> = when (val result = decrypt(this)) {
-    is Either.Right<*> -> result.getOrNull()!!.toOption()
-    else -> {
-        result.leftOrNull()!!.printStackTrace()
-        arrow.core.none()
-    }
+fun String.decrypt(): String? = try {
+    decrypt(this)
+} catch (e: Exception) {
+    null
 }
 
 fun URL.checkAvailability(): Boolean {

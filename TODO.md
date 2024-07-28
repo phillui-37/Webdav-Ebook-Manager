@@ -9,6 +9,9 @@
     - https://developer.android.com/develop/background-work/services/foreground-services
     - https://developer.android.com/guide/topics/providers/content-provider-basics
     - https://github.com/Kotlin/kotlinx.serialization/blob/master/docs/formats.md#protobuf-experimental
-- (Maybe) webview to allow in app reading
+- (Maybe) webview to allow in app reading (DONE!)
   - with pdfjs, mobijs and epubjs
   - scroll tracking to track reading status
+- feature
+  - bookmark
+  - 

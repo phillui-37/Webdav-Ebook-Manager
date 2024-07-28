@@ -25,7 +25,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,20 +41,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import arrow.core.Option
-import arrow.core.none
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
-import xyz.kgy_production.webdavebookmanager.util.matchParentWidth
 import xyz.kgy_production.webdavebookmanager.viewmodel.EditWebDavEntryViewModel
 
 @Composable
 fun EditWebDavEntryScreen(
-    uuid: Option<String>,
+    uuid: String?,
     onBack: () -> Unit,
     viewModel: EditWebDavEntryViewModel = hiltViewModel(),
 ) {
@@ -63,11 +59,10 @@ fun EditWebDavEntryScreen(
     val model by viewModel.data.collectAsStateWithLifecycle()
     var errorMessage by remember { mutableStateOf("") }
 
-    if (uuid.isSome()) {
-        val _uuid = uuid.getOrNull()!!
-        LaunchedEffect(key1 = _uuid) {
+    uuid?.let {
+        LaunchedEffect(key1 = it) {
             coroutineScope.launch {
-                viewModel.setModelByUuid(_uuid).onLeft {
+                viewModel.setModelByUuid(it).getError()?.let {
                     Log.e("EditWebDavEntryScreen", it)
                 }
             }
@@ -85,15 +80,15 @@ fun EditWebDavEntryScreen(
                 toReset = viewModel::resetModel,
                 toSubmit = {
                     coroutineScope.launch {
-                        val err = if (uuid.isNone()) {
+                        val err = if (uuid == null) {
                             viewModel.addWebDavEntry()
                         } else {
                             viewModel.editWebEntry()
                         }
-                        if (err.isNone()) {
+                        if (err == null) {
                             onBack()
                         } else {
-                            errorMessage = err.getOrNull()!!
+                            errorMessage = err
                         }
                     }
                 }
@@ -285,7 +280,7 @@ private fun InputField(
 @Composable
 private fun EditWebDavEntryScreenPreview() {
     EditWebDavEntryScreen(
-        uuid = none(),
+        uuid = null,
         onBack = {}
     )
 }

@@ -23,11 +23,11 @@ object DateTimePattern {
 }
 
 object MimeType {
-    const val PROTOBUF = "application/protobuf"
+    const val JSON = "application/json"
 }
 
-const val BOOK_METADATA_CONFIG_FILENAME = ".config.json"
+const val BOOK_METADATA_CONFIG_FILENAME = "webdav_mgr.conf.json"
 
 enum class NotificationChannelEnum(val tag: String, val id: Int) {
-    ScanWebDavService("ScanWebDav", 200)
+    ScanWebDavService("Scan Server Directory", 200)
 }

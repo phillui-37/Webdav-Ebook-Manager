@@ -49,10 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import arrow.core.Option
-import arrow.core.Some
-import arrow.core.none
-import arrow.core.raise.option
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.LocalIsNetworkAvailable
@@ -83,15 +79,15 @@ private data class MenuData(
 @Composable
 fun HomeScreen(
     openDrawer: () -> Unit,
-    toEditWebDavScreen: (Option<String>) -> Unit,
+    toEditWebDavScreen: (String?) -> Unit,
     toDirectoryScreen: (Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
-    var entryToDelete by remember { mutableStateOf<Option<DeleteEntryData>>(none()) }
+    var entryToDelete by remember { mutableStateOf<DeleteEntryData?>(null) }
     var refreshCbMap by remember { mutableStateOf<Map<Int, suspend () -> Unit>>(mapOf()) }
-    var menuData by remember { mutableStateOf<Option<MenuData>>(none()) }
+    var menuData by remember { mutableStateOf<MenuData?>(null) }
     val domainList = viewModel.filteredWebdavDomainListFlow.collectAsStateWithLifecycle()
     var isLoading by remember { mutableStateOf(false) }
     var needRefresh by remember { mutableStateOf(false) }
@@ -108,8 +104,7 @@ fun HomeScreen(
         }
     }
 
-    option {
-        val entry = entryToDelete.bind()
+    entryToDelete?.let { entry ->
         DeleteEntryDialog(
             url = entry.url,
             loginId = entry.loginId,
@@ -120,12 +115,11 @@ fun HomeScreen(
                     refreshCbMap = refreshCbMap.filter { it.key != entry.id }
                 }
             },
-            finalCb = { entryToDelete = none() }
+            finalCb = { entryToDelete = null }
         )
     }
 
-    option {
-        val data = menuData.bind()
+    menuData?.let { data ->
         MenuDialog(
             onCancel = data.onCancel,
             onShowDeleteDialog = data.onShowDeleteDialog,
@@ -143,13 +137,15 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            Fab { toEditWebDavScreen(none()) }
+            Fab { toEditWebDavScreen(null) }
         }
     ) { padding ->
         if (isLoading)
-            LinearProgressIndicator(modifier = Modifier
-                .padding(padding)
-                .fillMaxWidth())
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxWidth()
+            )
         Column(
             modifier = modifier
                 .padding(padding)
@@ -163,21 +159,18 @@ fun HomeScreen(
                     WebDavCard(
                         model = model,
                         toShowMenuDialog = {
-                            menuData = Some(MenuData(
+                            menuData = MenuData(
                                 onCancel = { },
                                 onShowDeleteDialog = {
-                                    entryToDelete =
-                                        Some(
-                                            DeleteEntryData(
-                                                model.id,
-                                                model.url,
-                                                model.loginId
-                                            )
-                                        )
+                                    entryToDelete = DeleteEntryData(
+                                        model.id,
+                                        model.url,
+                                        model.loginId
+                                    )
                                 },
-                                toWebdavDetail = { toEditWebDavScreen(Some(model.uuid)) },
-                                finalCb = { menuData = none() }
-                            ))
+                                toWebdavDetail = { toEditWebDavScreen(model.uuid) },
+                                finalCb = { menuData = null }
+                            )
                         },
                         refreshCb = { refreshCbMap += it },
                         toDirectory = { toDirectoryScreen(model.id) },

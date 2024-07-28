@@ -1,7 +1,6 @@
 [versions]
 accompanistDrawablepainter = "0.32.0"
 agp = "8.4.2"
-arrow = "1.2.4"
 datastorePreferences = "1.1.1"
 dav4jvm = "2.2.1"
 jetbrainsKotlinxSerialization = "1.7.1"
@@ -10,17 +9,19 @@ coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.2"
+lifecycleRuntimeKtx = "2.8.4"
 composeBom = "2024.06.00"
 androidxNavigation = "2.7.7"
-activityKtx = "1.9.0"
+activityKtx = "1.9.1"
 materialIconsExtended = "1.6.8"
 room = "2.6.1"
 ksp = "2.0.0-1.0.21"
 hilt = "2.51.1"
 appcompatResources = "1.7.0"
 androidxHiltNavigationCompose = "1.2.0"
-androidxLifecycle = "2.8.2"
+androidxLifecycle = "2.8.4"
+ktor = "2.3.12"
+webkit = "1.11.0"
 
 [libraries]
 accompanist-drawablepainter = { module = "com.google.accompanist:accompanist-drawablepainter", version.ref = "accompanistDrawablepainter" }
@@ -28,9 +29,6 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-runtime-livedata = { module = "androidx.compose.runtime:runtime-livedata" }
-arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
-arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
-arrow-optics-ksp-plugin = { module = "io.arrow-kt:arrow-optics-ksp-plugin", version.ref = "arrow" }
 dav4jvm = { module = "com.github.bitfireAT:dav4jvm", version.ref = "dav4jvm" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -55,6 +53,9 @@ androidx-appcompat-resources = { group = "androidx.appcompat", name = "appcompat
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "androidxHiltNavigationCompose" }
 androidx-lifecycle-runtimeCompose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "jetbrainsKotlinxSerialization" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
