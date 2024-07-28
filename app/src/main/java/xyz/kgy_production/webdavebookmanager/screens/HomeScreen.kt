@@ -63,8 +63,8 @@ import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.removeAllShareFiles
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.viewmodel.HomeViewModel
-import java.net.URLDecoder
 
 private data class DeleteEntryData(
     val id: Int,
@@ -242,6 +242,9 @@ private fun MenuDialog(
                 ) {
                     Text(text = "Scan whole directory to build index") // TODO i18n
                 }
+                TextButton(onClick = data.removeShareCache pipe data.finalCb) {
+                    Text(text = "Clear all cache files") // TODO i18n
+                }
             }
         }
     }
@@ -320,7 +323,7 @@ private fun WebDavCard(
             ) {
                 Text(text = model.name.ifEmpty { "-" }, fontSize = TextUnit(20f, TextUnitType.Sp))
                 Box(modifier = Modifier.height(5.dp))
-                Text(text = "URL: ${URLDecoder.decode(model.url, "UTF-8")}")
+                Text(text = "URL: ${model.url.urlDecode()}")
                 Text(text = "Login ID: ${model.loginId}")
             }
             Box(

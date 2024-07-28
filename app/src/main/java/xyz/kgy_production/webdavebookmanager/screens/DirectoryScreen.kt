@@ -1,8 +1,7 @@
 package xyz.kgy_production.webdavebookmanager.screens
 
-import android.content.Intent
 import android.net.Uri
-import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,11 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -51,18 +50,16 @@ import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.openWithExtApp
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.saveShareFile
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
+import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
-import java.io.File
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.file.Files
-import kotlin.io.path.Path
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel
@@ -70,7 +67,9 @@ import kotlin.io.path.Path
 @Composable
 fun DirectoryScreen(
     id: Int,
+    toReaderScreen: (Uri, String) -> Unit,
     onBack: () -> Unit,
+    destUrl: String? = null,
     viewModel: DirectoryViewModel = hiltViewModel(),
 ) {
     // TODO search, filter<-need remote data(protobuf)<-tag/series...
@@ -78,7 +77,7 @@ fun DirectoryScreen(
     val model = runBlocking(Dispatchers.IO) {
         viewModel.getWebDavModel(id)!!
     }
-    var currentPath by remember { mutableStateOf(model.url) }
+    var currentPath by remember { mutableStateOf(destUrl ?: model.url) }
     var contentList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>>(listOf()) }
     val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
     var isLoading by remember { mutableStateOf(false) }
@@ -87,16 +86,32 @@ fun DirectoryScreen(
     val snackBarHostState = remember { SnackbarHostState() }
     var conf by remember { mutableStateOf<WebDavCacheData?>(null) }
     var dirTree by remember { mutableStateOf<WebDavCacheData.WebDavDirTreeNode?>(null) }
+    val re = model.bypassPattern.map {
+        if (it.isRegex) Regex(it.pattern)
+        else Regex(".*${it.pattern}.*")
+    }
+    val byPassPatternFilter: (String) -> Boolean =
+        { path -> re.all { !it.matches(path.urlDecode()) } }
+    val scrollState = rememberLazyListState()
+    val logger by Logger.delegate("DirectoryScreen")
+
+    BackHandler {
+        if (currentPath.urlEncode() == model.url)
+            onBack()
+        else
+            currentPath = currentPath.split("/").run { subList(0, size - 1) }.joinToString("/")
+    }
 
     LaunchedEffect(currentPath) {
-        Log.d("DirectoryScreen", "path updated: $currentPath")
+        logger.d("path updated: $currentPath")
         isLoading = true
         contentList = listOf()
         coroutineScope.launch {
             dirTree?.let { tree ->
                 tree.search(
-                    URLEncoder.encode(currentPath, "UTF-8").replace(model.url, "")
+                    currentPath.urlEncode().replace(model.url, "")
                 )?.let {
+                    logger.d("node found in tree")
                     contentList = it.children.map { it.toContentData(model.url) }
                 }
             }
@@ -158,10 +173,7 @@ fun DirectoryScreen(
                 )
             else
                 DirectoryTopBar(
-                    title = URLDecoder.decode(
-                        currentPath.split("/").run { get(size - 1) },
-                        "UTF-8"
-                    ),
+                    title = currentPath.split("/").run { get(size - 1) }.urlDecode(),
                     onBack = onBack,
                     toParentDir = {
                         currentPath = currentPath.split("/")
@@ -191,21 +203,23 @@ fun DirectoryScreen(
                 .padding(padding)
                 .then(INTERNAL_VERTICAL_PADDING_MODIFIER)
                 .then(INTERNAL_HORIZONTAL_PADDING_MODIFIER),
+            state = scrollState,
             contentPadding = PaddingValues(4.dp)
         ) {
-            items(contentList.filter { it.isDir }) { content ->
+            items(contentList.filter { it.isDir && byPassPatternFilter(it.fullUrl) && it.fullUrl.urlDecode() != currentPath }) { content ->
                 ContentRow(content = content) {
-                    Log.d("DirScreen", "Dir onclick: $it")
+                    logger.d("Dir onclick: $it")
                     currentPath = it
                 }
             }
-            items(contentList.filter { !it.isDir }) { content ->
+            items(contentList.filter { !it.isDir && byPassPatternFilter(it.fullUrl) && it.name != BOOK_METADATA_CONFIG_FILENAME }) { content ->
                 ContentRow(content = content) {
-                    Log.d("DirScreen", "File onclick: $it")
+                    logger.d("File onclick: $it")
                     val paths = it.split("/")
                     val file = ctx.saveShareFile(
-                        URLDecoder.decode(paths.last(), "utf-8"),
-                        "/${model.uuid}" + URLDecoder.decode(paths.subList(0, paths.size - 1).joinToString("/").replace(model.url, ""), "utf-8")
+                        paths.last().urlDecode(),
+                        "/${model.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
+                            .replace(model.url, "").urlDecode()
                     ) {
                         var data: ByteArray = byteArrayOf()
                         runBlocking(Dispatchers.IO) {
@@ -216,7 +230,7 @@ fun DirectoryScreen(
                         data
                     }
                     if (model.defaultOpenByThis) {
-                        // todo nav to reader screen
+                        toReaderScreen(Uri.fromFile(file), currentPath)
                     } else {
                         ctx.openWithExtApp(
                             file,
@@ -230,7 +244,7 @@ fun DirectoryScreen(
     LaunchedEffect(Unit) {
         if (model.url == currentPath)
             conf = firstTimeLaunchCheck(model) {
-                Log.d("DirScreen", "first time launch for ")
+                logger.d("first time launch for ")
                 showFirstTimeDialog = true
             }
     }

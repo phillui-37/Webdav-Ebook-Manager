@@ -13,7 +13,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PersistableBundle
-import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -39,13 +38,14 @@ import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
-import java.net.URLDecoder
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -53,6 +53,8 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class ScanWebDavService : JobService() {
+    private val logger by Logger.delegate(this::class.java)
+
     companion object {
         fun startScanService(ctx: Context, id: Int) {
             val scheduler = ctx.getSystemService(JobScheduler::class.java)
@@ -107,14 +109,14 @@ class ScanWebDavService : JobService() {
     private val dirCacheList = mutableListOf<WebDavDirNode>()
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        Log.i("ScanWebDavService", "Job start")
+        logger.i("Job start")
         if (!isNetworkAvailable()) {
-            Log.w("ScanWebDavService", "Network not available")
+            logger.w("Network not available")
             stopSelf()
         }
         val id = params?.extras?.getInt("id", -1)!!
         if (id == -1) {
-            Log.e("ScanWebDavService", "id not provided")
+            logger.e("id not provided")
             stopSelf()
         }
 
@@ -123,18 +125,18 @@ class ScanWebDavService : JobService() {
             data?.let {
                 baseUrl = it.url
             } ?: run {
-                Log.w("ScanWebDavService", "id not valid")
+                logger.w("id not valid")
                 stopSelf()
             }
 
-            Log.d("ScanWebDavService", "$data")
+            logger.d("$data")
             execute(data)
         }
         return true
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
-        Log.i("ScanWebDavService", "Job stop")
+        logger.i("Job stop")
         return false
     }
 
@@ -204,7 +206,7 @@ class ScanWebDavService : JobService() {
             throw Err("'${webDavData.url}' not reachable")
 
         MainActivity.keepScreenOn()
-        Log.d("ScanWebDavService", "Start handling ${webDavData.url}")
+        logger.d("Start handling ${webDavData.url}")
         val cancelNotiAction = sendTaskNotification(webDavData.name.ifEmpty { webDavData.url })
 
         webDavData.bypassPattern
@@ -239,8 +241,7 @@ class ScanWebDavService : JobService() {
                 val doneFileCountNow = doneFileCount.get()
                 if (sameFileCountCounter >= 10 && doneFileCountNow == countNow) break
 
-                Log.d(
-                    "ScanWebDavService",
+                logger.d(
                     "File count now: $countNow, done file count now: $doneFileCountNow"
                 )
                 if (countNow == fileCountSnapshot) {
@@ -251,8 +252,7 @@ class ScanWebDavService : JobService() {
                 }
                 delay(1000) // check it every one second
             }
-            Log.d(
-                "ScanWebDavService",
+            logger.d(
                 "file count $fileCountSnapshot stable now, task can be finished"
             )
             dirScanJob.cancel("Done")
@@ -271,34 +271,31 @@ class ScanWebDavService : JobService() {
     } ?: throw Err("null data is provided")
 
     private suspend fun updateCheckingList(param: GetCheckListParam) {
-        Log.d("updateCheckingList", "checking '${URLDecoder.decode(param.url, "UTF-8")}'")
+        logger.d("[updateCheckingList] checking '${param.url.urlDecode()}'")
         var ls = listOf<DirectoryViewModel.ContentData>()
         param.getList { ls = it }
 
         val currentPath = param.url.replace(baseUrl, "").split("/")
         val dirCache = WebDavDirNode(
-            URLDecoder.decode(currentPath.last().ifEmpty { "/" }, "UTF-8"),
+            currentPath.last().ifEmpty { "/" }.urlDecode(),
             when (currentPath.size) {
                 1 -> null
                 2 -> "/"
-                else -> URLDecoder.decode(
-                    currentPath.subList(0, currentPath.size - 1).joinToString("/"),
-                    "UTF-8"
-                )
+                else -> currentPath.subList(0, currentPath.size - 1).joinToString("/").urlDecode()
             },
-            ls.filter { it.isDir }.map { URLDecoder.decode(it.fullUrl.split("/").last(), "UTF-8") },
+            ls.filter { it.isDir }.map { it.fullUrl.split("/").last().urlDecode() },
             LocalDateTime.now(),
         )
         dirCacheList.add(dirCache)
 
         ls = ls.filter { item ->
             byPassPatterns.all {
-                !it.matches(URLDecoder.decode(item.fullUrl, "UTF-8"))
+                !it.matches(item.fullUrl.urlDecode())
             }
         }
         val folders = ls.filter { it.isDir }
-        CoroutineScope(threadPoolDispatcher).launch {
-            folders.forEach {
+        folders.forEach {
+            CoroutineScope(threadPoolDispatcher).launch {
                 pendingCheckingQueue.send(
                     GetCheckListParam(
                         it.fullUrl,
@@ -309,20 +306,16 @@ class ScanWebDavService : JobService() {
             }
         }
         val files = ls.filter { !it.isDir }
-        CoroutineScope(threadPoolDispatcher).launch {
-            files.forEach {
-                fileCount.addAndGet(1)
+        files.forEach {
+            fileCount.addAndGet(1)
+            CoroutineScope(threadPoolDispatcher).launch {
                 fileListQueue.send(it)
             }
         }
 
-        Log.d(
-            "getCheckingList",
-            "'${
-                URLDecoder.decode(
-                    param.url,
-                    "UTF-8"
-                )
+        logger.d(
+            "[getCheckingList] '${
+                param.url.urlDecode()
             }' has ${folders.size} folders and ${files.size} files"
         )
     }
@@ -331,7 +324,7 @@ class ScanWebDavService : JobService() {
         return CoroutineScope(threadPoolDispatcher).async {
             while (true) {
                 val dirUrl = pendingCheckingQueue.receive()
-                Log.d("ScanWebDavService", "Received url ${dirUrl.url} from queue")
+                logger.d("Received url ${dirUrl.url} from queue")
                 updateCheckingList(dirUrl)
             }
         }
@@ -341,7 +334,7 @@ class ScanWebDavService : JobService() {
         return CoroutineScope(threadPoolDispatcher).async {
             while (true) {
                 val book = fileListQueue.receive()
-                Log.d("ScanWebDavService", "Received book ${book.name} from queue")
+                logger.d("Received book ${book.name} from queue")
                 bookMetaDataLsMutex.withLock {
                     bookMetaDataLs.add(BookMetaData(
                         name = book.name,

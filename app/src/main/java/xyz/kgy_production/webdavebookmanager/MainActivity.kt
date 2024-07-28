@@ -5,10 +5,8 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,13 +24,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.core.content.PackageManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.ThemeOption
 import xyz.kgy_production.webdavebookmanager.util.isSystemDarkMode
 import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
@@ -46,16 +44,17 @@ val LocalPrivateStorage: ProvidableCompositionLocal<File?> = staticCompositionLo
 class MainActivity : ComponentActivity() {
     companion object {
         private var _instance: ComponentActivity? = null
+        private val logger by Logger.delegate(MainActivity::class.java)
 
         fun keepScreenOn() {
-            Log.d("MainAct", "Requested Keep Screen On")
+            logger.d("Requested Keep Screen On")
             CoroutineScope(Dispatchers.Main).launch {
                 _instance?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
 
         fun letScreenRest() {
-            Log.d("MainAct", "Cancelled Keep Screen On")
+            logger.d("Cancelled Keep Screen On")
             CoroutineScope(Dispatchers.Main).launch {
                 _instance?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
@@ -122,16 +121,16 @@ class MainActivity : ComponentActivity() {
     private fun subscribeNetworkChange(
         setter: (Boolean) -> Unit
     ) {
-        Log.d("MainAct::subscribeNetworkChange", "start")
+        logger.d("[subscribeNetworkChange] start")
         val cm = getSystemService(ConnectivityManager::class.java)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                Log.d("MainAct::subscribeNetworkChange", "Network available")
+                logger.d("[subscribeNetworkChange] Network available")
                 setter(true)
             }
 
             override fun onLost(network: Network) {
-                Log.d("MainAct::subscribeNetworkChange", "Network unavailable")
+                logger.d("[subscribeNetworkChange] Network unavailable")
                 setter(false)
             }
         })

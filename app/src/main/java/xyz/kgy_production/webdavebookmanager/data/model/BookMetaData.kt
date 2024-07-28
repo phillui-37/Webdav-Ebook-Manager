@@ -14,6 +14,9 @@ data class BookMetaData(
     val publisher: String = NOT_FILLED,
     val fileType: String, // from MediaType
     val relativePath: String,
+    val isRead: Boolean = false,
+    val readProgress: Double = .0,
+    val bookmark: List<Pair<String, Double>> = listOf(),
     @Serializable(with = LocalDateTimeSerializer::class)
     val lastUpdated: LocalDateTime,
 ) {

@@ -1,8 +1,8 @@
 package xyz.kgy_production.webdavebookmanager.data.model
 
-import android.util.Log
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaType
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
 import java.time.LocalDateTime
 
@@ -11,6 +11,7 @@ data class WebDavCacheData(
     val dirCache: List<WebDavDirNode>,
     val bookMetaDataLs: List<BookMetaData>
 ) {
+    private val logger by Logger.delegate(this::class.java)
     data class WebDavDirTreeNode(
         val current: String,
         val parent: WebDavDirTreeNode?,
@@ -75,7 +76,7 @@ data class WebDavCacheData(
                                 mutableListOf()
                             )
                         )
-                    } ?: Log.e("WebDavCacheData::dirToTree", "$dir cannot find parent")
+                    } ?: logger.e("dirToTree: $dir cannot find parent")
             }
         }
         return root

@@ -29,6 +29,6 @@ new MutationObserver((_, observer) => {
             observer.disconnect();
             done = true;
             clearTimeout(scrollSetTimeoutId);
-        }, 1000);
+        }, %d);
     }
 }).observe(document.querySelector('body'), {childList: true, subtree: true});

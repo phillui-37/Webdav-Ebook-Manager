@@ -31,3 +31,6 @@ const val BOOK_METADATA_CONFIG_FILENAME = "webdav_mgr.conf.json"
 enum class NotificationChannelEnum(val tag: String, val id: Int) {
     ScanWebDavService("Scan Server Directory", 200)
 }
+
+const val EBOOK_READER_LIB_URL = "https://phillui-37.github.io/foliate-js/"
+const val WEBVIEW_COMMON_DELAY = 1500 //ms

@@ -1,8 +1,8 @@
 package xyz.kgy_production.webdavebookmanager.data.model
 
-import android.util.Log
 import kotlinx.serialization.Serializable
 import xyz.kgy_production.webdavebookmanager.common.Result
+import xyz.kgy_production.webdavebookmanager.util.Logger
 
 data class WebDavModel(
     val id: Int = 0,
@@ -16,12 +16,14 @@ data class WebDavModel(
     val bypassPattern: List<ByPassPattern> = listOf(),
     val defaultOpenByThis: Boolean = true,
 ) {
+    private val logger by Logger.delegate(this::class.java)
+
     @Serializable
     data class ByPassPattern(val pattern: String, val isRegex: Boolean)
 
     private val urlRegex = Regex("^https?://.*")
     private fun checkUrl(): Result<Unit> {
-        Log.d("WebDavModel", "url: $url, ${urlRegex.matches(url)}")
+        logger.d("url: $url, ${urlRegex.matches(url)}")
         return if (url.isEmpty() || !urlRegex.matches(url))
             Result.fail("URL not valid")
         else

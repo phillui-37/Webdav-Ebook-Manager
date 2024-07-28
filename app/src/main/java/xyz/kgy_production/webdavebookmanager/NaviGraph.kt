@@ -1,5 +1,6 @@
 package xyz.kgy_production.webdavebookmanager
 
+import android.net.Uri
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
@@ -21,7 +22,10 @@ import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
 import xyz.kgy_production.webdavebookmanager.screens.DirectoryScreen
 import xyz.kgy_production.webdavebookmanager.screens.EditWebDavEntryScreen
 import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
+import xyz.kgy_production.webdavebookmanager.screens.ReaderScreen
 import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
+import xyz.kgy_production.webdavebookmanager.util.Logger
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
 
 @Composable
@@ -34,6 +38,7 @@ fun NaviGraph(
     startDestination: String = Path.HOME,
     naviActions: NaviActions = remember(navController) { NaviActions(navController) }
 ) {
+    val logger by Logger.delegate("NaviGraph")
     val currentNavBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentNavBackStackEntry?.destination?.route ?: startDestination
 
@@ -71,7 +76,9 @@ fun NaviGraph(
         composable(
             Path.EDIT_WEBDAV_ENTRY,
             arguments = listOf(
-                navArgument(RouteArgs.EditWebDavEntry.UUID) { type = NavType.StringType; nullable = true }
+                navArgument(RouteArgs.EditWebDavEntry.UUID) {
+                    type = NavType.StringType; nullable = true
+                }
             )
         ) { entry ->
             val uuid = when (val it = entry.arguments?.getString(RouteArgs.EditWebDavEntry.UUID)) {
@@ -86,13 +93,45 @@ fun NaviGraph(
         composable(
             Path.DIRECTORY,
             arguments = listOf(
-                navArgument(RouteArgs.Directory.ID) { type = NavType.IntType }
+                navArgument(RouteArgs.Directory.ID) { type = NavType.IntType },
+                navArgument(RouteArgs.Directory.TO_DEST) {
+                    nullable = true; type = NavType.StringType
+                }
             )
-        )  { entry ->
+        ) { entry ->
             val id = entry.arguments?.getInt(RouteArgs.Directory.ID)!!
+            val toDest = entry.arguments?.getString(RouteArgs.Directory.TO_DEST)
             DirectoryScreen(
                 id = id,
+                toReaderScreen = { uri, path ->
+                    naviActions.navigateToReader(webDavId = id, bookUri = uri, fromDirUrl = path)
+                },
+                destUrl = toDest,
                 onBack = navController::popBackStack
+            )
+        }
+        composable(
+            Path.READER,
+            arguments = listOf(
+                navArgument(RouteArgs.Reader.BOOK_URI) { type = NavType.StringType },
+                navArgument(RouteArgs.Reader.WEBDAV_ID) { type = NavType.IntType },
+                navArgument(RouteArgs.Reader.FROM_DIR_URL) { type = NavType.StringType },
+            )
+        ) { entry ->
+            val webDavId = entry.arguments?.getInt(RouteArgs.Reader.WEBDAV_ID)!!
+            val bookUri = Uri.parse(
+                entry.arguments?.getString(RouteArgs.Reader.BOOK_URI)?.urlDecode(),
+            )
+            val fromDirUrl = entry.arguments?.getString(RouteArgs.Reader.FROM_DIR_URL)!!
+            ReaderScreen(
+                webDavId = webDavId,
+                bookUri = bookUri,
+                fromDirUrl = fromDirUrl,
+                onBack = {
+                    navController.popBackStack()
+                    navController.popBackStack()
+                    naviActions.navigateToDirectory(webDavId, fromDirUrl)
+                }
             )
         }
     }

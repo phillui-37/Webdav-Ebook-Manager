@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.screens
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +47,7 @@ import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.viewmodel.EditWebDavEntryViewModel
 
 @Composable
@@ -56,16 +56,15 @@ fun EditWebDavEntryScreen(
     onBack: () -> Unit,
     viewModel: EditWebDavEntryViewModel = hiltViewModel(),
 ) {
+    val logger by Logger.delegate("EditWebDavEntryScr")
     val coroutineScope = rememberCoroutineScope()
     val model by viewModel.data.collectAsStateWithLifecycle()
     var errorMessage by remember { mutableStateOf("") }
 
-    uuid?.let {
+    uuid?.let { it ->
         LaunchedEffect(key1 = it) {
             coroutineScope.launch {
-                viewModel.setModelByUuid(it).getError()?.let {
-                    Log.e("EditWebDavEntryScreen", it)
-                }
+                viewModel.setModelByUuid(it).getError()?.let(logger::e)
             }
         }
     }
@@ -140,7 +139,7 @@ fun EditWebDavEntryScreen(
             ) {
                 viewModel.updateModel(model.copy(password = it))
             }
-            Row{
+            Row {
                 Text(
                     modifier = Modifier.align(Alignment.CenterVertically),
                     text = "Open ebook with this app"
@@ -209,15 +208,25 @@ private fun BottomBar(
     toSubmit: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp),
         horizontalArrangement = Arrangement.Absolute.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = toReset, modifier = Modifier.padding(10.dp).weight(1.0f)) {
+        Button(
+            onClick = toReset, modifier = Modifier
+                .padding(10.dp)
+                .weight(1.0f)
+        ) {
             Text(text = stringResource(id = R.string.btn_reset))
         }
         Row(modifier = Modifier.weight(1.0f)) {}
-        Button(onClick = toSubmit, modifier = Modifier.padding(10.dp).weight(1.0f)) {
+        Button(
+            onClick = toSubmit, modifier = Modifier
+                .padding(10.dp)
+                .weight(1.0f)
+        ) {
             Text(text = stringResource(id = R.string.btn_submit))
         }
     }

@@ -7,6 +7,8 @@ import androidx.compose.ui.Modifier
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLDecoder
+import java.net.URLEncoder
 import java.net.UnknownHostException
 import java.time.Instant
 import java.time.LocalDateTime
@@ -50,3 +52,6 @@ fun String.formatDateTime(formatter: DateTimeFormatter): LocalDateTime {
 
 fun Long.toDateTime() =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(this), java.util.TimeZone.getDefault().toZoneId())
+
+fun String.urlEncode() = URLEncoder.encode(this, "utf-8")
+fun String.urlDecode() = URLDecoder.decode(this, "utf-8")

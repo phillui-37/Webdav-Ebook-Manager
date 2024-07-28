@@ -16,6 +16,8 @@ import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
 
+private val logger by Logger.delegate("WebDavUtil")
+
 fun getWebDavCollection(url: String, loginId: String, password: String): DavCollection {
     val authHandler = BasicDigestAuthHandler(
         domain = null,
@@ -37,6 +39,7 @@ fun getWebDavDirContentList(
     password: String,
     contentListSetter: (List<DirectoryViewModel.ContentData>) -> Unit
 ) {
+    logger.d("get '$url' content")
     val collection = getWebDavCollection(url, loginId, password)
     val properties = arrayOf(
         DisplayName.NAME,
@@ -59,7 +62,7 @@ fun checkIsWebDavDomainAvailable(url: String, loginId: String, password: String)
         collection.propfind(1, DisplayName.NAME) { _, _ -> }
         return true
     } catch (e: Exception) {
-        Log.w("checkIsWebDavDomainAvailable", "$url is not reachable")
+        logger.w("$url is not reachable")
         e.printStackTrace()
         return false
     }
@@ -74,7 +77,7 @@ fun writeDataToWebDav(
 ) {
     val collection = getWebDavCollection("$url/$filename", loginId, password)
     collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
-        Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+        logger.d("[writeBookMetaDatasToWebDav] ${response.code}: ${response.body}")
     }
 }
 
@@ -89,18 +92,18 @@ fun writeDataToWebDav(
     val collection = getWebDavCollection("$url/$filename", loginId, password)
     try {
         collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
-            Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+            logger.d("[writeBookMetaDatasToWebDav] ${response.code}: ${response.body}")
         }
     } catch (e: ConflictException) {
         if (overwrite) {
-            collection.delete {response ->
-                Log.d("writeBookMetaDatasToWebDav", "delete $filename with response ${response.code}")
+            collection.delete { response ->
+                logger.d("[writeBookMetaDatasToWebDav] delete $filename with response ${response.code}")
             }
             collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
-                Log.d("writeBookMetaDatasToWebDav", "${response.code}: ${response.body}")
+                logger.d("[writeBookMetaDatasToWebDav] ${response.code}: ${response.body}")
             }
         } else {
-            Log.e("WebDavUtil", "file $filename has conflict, cannot run data to it")
+            logger.e("[writeBookMetaDatasToWebDav] file $filename has conflict, cannot run data to it")
         }
     }
 }
@@ -119,8 +122,8 @@ inline fun getFileFromWebDav(
             resultSetter(if (response.code == 200) response.body?.bytes() else null)
         }
     } catch (e: NotFoundException) {
-      Log.d("getFileFromWebDav", "file $filename not exists")
-      resultSetter(null)
+        Log.d("getFileFromWebDav", "file $filename not exists")
+        resultSetter(null)
     }
 }
 

@@ -1,9 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.data
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -11,6 +8,7 @@ import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.di.DefaultDispatcher
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.decrypt
 import xyz.kgy_production.webdavebookmanager.util.encrypt
 import java.util.UUID
@@ -22,6 +20,7 @@ class DefaultWebDavRepository @Inject constructor(
     private val dbDAO: WebDavDAO,
     @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : WebDavRepository {
+    private val logger by Logger.delegate(this::class.java)
     override suspend fun getAllEntries(): List<WebDavModel> {
         return withContext(dispatcher) {
             dbDAO.getAll()
@@ -49,9 +48,8 @@ class DefaultWebDavRepository @Inject constructor(
             dbDAO.getByUrl(url)
                 .firstOrNull {
                     val _loginId = it.loginId.decrypt() ?: run {
-                        Log.e(
-                            "WebDavRepo::getEntryByUrlAndLoginId",
-                            "Login id decrypt error"
+                        logger.e(
+                            "[getEntryByUrlAndLoginId] Login id decrypt error"
                         )
                         ""
                     }
@@ -87,8 +85,8 @@ class DefaultWebDavRepository @Inject constructor(
                 withContext(dispatcher) {
                     dbDAO.insert(webDavEntity)
                 }
-            } ?: Log.e("WebDavRepo::createEntry", "Encrypt fail")
-        } ?: Log.e("WebDavRepo::createEntry", "Encrypt fail")
+            } ?: logger.e("[createEntry] Encrypt fail")
+        } ?: logger.e("[createEntry] Encrypt fail")
     }
 
     override suspend fun createEntry(model: WebDavModel) {
@@ -124,8 +122,8 @@ class DefaultWebDavRepository @Inject constructor(
                 withContext(dispatcher) {
                     dbDAO.upsert(entity)
                 }
-            } ?: Log.e("WebDavRepo::createEntry", "Decrypt fail")
-        } ?: Log.e("WebDavRepo::createEntry", "Decrypt fail")
+            } ?: logger.e("[createEntry] Decrypt fail")
+        } ?: logger.e("[createEntry] Decrypt fail")
     }
 
     override suspend fun updateEntry(model: WebDavModel) {
@@ -133,7 +131,7 @@ class DefaultWebDavRepository @Inject constructor(
             withContext(dispatcher) {
                 dbDAO.upsert(model.toEntity())
             }
-        } ?: Log.w("WebDavRepo::updateEntry", "id not exists, op has stopped")
+        } ?: logger.w("[updateEntry] id not exists, op has stopped")
     }
 
     override suspend fun deactivateEntry(id: Int) {
@@ -141,7 +139,7 @@ class DefaultWebDavRepository @Inject constructor(
             withContext(dispatcher) {
                 dbDAO.setIsActive(id, false)
             }
-        } ?: Log.w("WebDavRepo::deactivateEntry", "id not exists, op has stopped")
+        } ?: logger.w("[deactivateEntry] id not exists, op has stopped")
     }
 
     override suspend fun activateEntry(id: Int) {
@@ -149,7 +147,7 @@ class DefaultWebDavRepository @Inject constructor(
             withContext(dispatcher) {
                 dbDAO.setIsActive(id, true)
             }
-        } ?: Log.w("WebDavRepo::activateEntry", "id not exists, op has stopped")
+        } ?: logger.w("[activateEntry] id not exists, op has stopped")
     }
 
     override suspend fun deleteEntry(id: Int) {
@@ -157,6 +155,6 @@ class DefaultWebDavRepository @Inject constructor(
             withContext(dispatcher) {
                 dbDAO.deleteById(id)
             }
-        } ?: Log.w("WebDavRepo::deleteEntry", "id not exists, op has stopped")
+        } ?: logger.w("[deleteEntry] id not exists, op has stopped")
     }
 }
