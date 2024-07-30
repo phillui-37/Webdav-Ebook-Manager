@@ -26,6 +26,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +62,7 @@ import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.pipe
@@ -89,6 +93,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val logger by Logger.delegate("Home")
     val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
     var entryToDelete by remember { mutableStateOf<DeleteEntryData?>(null) }
     var refreshCbMap by remember { mutableStateOf<Map<Int, suspend () -> Unit>>(mapOf()) }
@@ -97,6 +102,7 @@ fun HomeScreen(
     var isLoading by remember { mutableStateOf(false) }
     var needRefresh by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
+    val snackBarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(needRefresh) {
         if (needRefresh) {
@@ -111,6 +117,7 @@ fun HomeScreen(
     }
 
     entryToDelete?.let { entry ->
+        logger.d("to delete webdav entry#${entry.id} ${entry.url}")
         DeleteEntryDialog(
             url = entry.url,
             loginId = entry.loginId,
@@ -118,7 +125,11 @@ fun HomeScreen(
             onDelete = {
                 coroutineScope.launch {
                     viewModel.removeEntry(entry.id)
-                    refreshCbMap = refreshCbMap.filter { it.key != entry.id }
+                    refreshCbMap = refreshCbMap.filter {
+                        logger.d("delete webdav entry: checking id ${it.key}")
+                        it.key != entry.id
+                    }
+                    logger.d("refreshCbMap remain ids: ${refreshCbMap.keys.joinToString(",")}")
                 }
             },
             finalCb = { entryToDelete = null }
@@ -138,6 +149,16 @@ fun HomeScreen(
         )
     }
 
+    fun toDisplaySnackBar(message: String) {
+        coroutineScope.launch {
+            snackBarHostState.showSnackbar(
+                message = message,
+                actionLabel = ctx.getString(R.string.btn_dismiss),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             TopBar(
@@ -148,6 +169,9 @@ fun HomeScreen(
         },
         floatingActionButton = {
             Fab { toEditWebDavScreen(null) }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackBarHostState)
         }
     ) { padding ->
         if (isLoading)
@@ -163,7 +187,7 @@ fun HomeScreen(
                 .then(INTERNAL_VERTICAL_PADDING_MODIFIER)
         ) {
             LazyColumn(
-                contentPadding = PaddingValues(vertical = 10.dp)
+                contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(domainList.value) { model ->
                     WebDavCard(
@@ -192,6 +216,7 @@ fun HomeScreen(
                             )
                         },
                         refreshCb = { refreshCbMap += it },
+                        toDisplaySnackBar = ::toDisplaySnackBar,
                         toDirectory = { toDirectoryScreen(model.id) },
                     )
                 }
@@ -287,13 +312,16 @@ private fun WebDavCard(
     model: WebDavModel,
     toShowMenuDialog: () -> Unit,
     toDirectory: () -> Unit,
+    toDisplaySnackBar: (String) -> Unit,
     refreshCb: (Pair<Int, suspend () -> Unit>) -> Unit,
 ) {
+    val logger by Logger.delegate("Home:WebDavCard")
     val isNetworkAvailable = LocalIsNetworkAvailable.current
     var isAvailable by remember { mutableStateOf(isNetworkAvailable) }
     // todo offline handling: cache dir tree and book
 
     suspend fun updateAvailability() {
+        logger.d("refresh triggered for ${model.url}")
         isAvailable = isNetworkAvailable && checkIsWebDavDomainAvailable(
             model.url,
             model.loginId,
@@ -303,6 +331,18 @@ private fun WebDavCard(
 
     refreshCb(model.id to ::updateAvailability)
 
+    LaunchedEffect(isAvailable) {
+        logger.d("${model.url} availability: $isAvailable")
+    }
+
+    fun onClick() {
+        if (isAvailable) toDirectory()
+        else toDisplaySnackBar(
+            if (isNetworkAvailable) "Server cannot be reached, please check server status"
+            else "Network not available, please turn on your WiFi or cellular network connection"
+        ) // TODO i18n
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -310,7 +350,7 @@ private fun WebDavCard(
             .wrapContentHeight()
             .shadow(5.dp)
             .combinedClickable(
-                onClick = toDirectory,
+                onClick = ::onClick,
                 onLongClick = toShowMenuDialog,
                 onLongClickLabel = stringResource(id = R.string.btn_show_menu)
             ),
@@ -336,18 +376,10 @@ private fun WebDavCard(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    if (isNetworkAvailable)
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .background(if (isAvailable) Color.Green else Color.Red)
-                        )
-                    else
-                        Icon(
-                            Icons.Outlined.Circle,
-                            stringResource(id = R.string.label_common_no_network)
-                        )
+                    NetworkIndicator(
+                        isNetworkAvailable = isNetworkAvailable,
+                        isAvailable = isAvailable,
+                    )
                     Text(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
@@ -361,6 +393,27 @@ private fun WebDavCard(
             }
         }
     }
+}
+
+@Composable
+fun NetworkIndicator(
+    isNetworkAvailable: Boolean,
+    isAvailable: Boolean,
+) {
+    val logger by Logger.delegate("Home:NetworkIndicator")
+    logger.d("rendered, status: network->$isNetworkAvailable, avail->$isAvailable")
+    if (isNetworkAvailable)
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(if (isAvailable) Color.Green else Color.Red)
+        )
+    else
+        Icon(
+            Icons.Outlined.Circle,
+            stringResource(id = R.string.label_common_no_network)
+        )
 }
 
 @Composable
@@ -431,6 +484,7 @@ fun WebDavCardPreview() {
         ),
         toShowMenuDialog = { },
         refreshCb = { },
+        toDisplaySnackBar = {},
         toDirectory = { }
     )
 }

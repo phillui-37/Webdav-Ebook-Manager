@@ -31,7 +31,7 @@ sealed class Logger(protected val tag: String) {
     abstract fun w(th: Throwable): Int
     abstract fun w(msg: String, th: Throwable): Int
 
-    class NormalLogger(tag: String) : Logger(tag) {
+    private class NormalLogger(tag: String) : Logger(tag) {
         override fun d(msg: String) = Log.d(tag, msg)
         override fun d(msg: String, th: Throwable) = Log.d(tag, msg, th)
         override fun e(msg: String) = Log.e(tag, msg)
@@ -48,7 +48,7 @@ sealed class Logger(protected val tag: String) {
         override fun w(msg: String, th: Throwable) = Log.w(tag, msg, th)
     }
 
-    class ProdLogger(tag: String) : Logger(tag) {
+    private class ProdLogger(tag: String) : Logger(tag) {
         override fun d(msg: String) = 0
         override fun d(msg: String, th: Throwable) = 0
         override fun e(msg: String) = Log.e(tag, msg)

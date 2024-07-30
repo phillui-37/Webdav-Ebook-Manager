@@ -3,6 +3,7 @@ package xyz.kgy_production.webdavebookmanager.viewmodel
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
@@ -39,6 +40,8 @@ class HomeViewModel @Inject constructor(
         try {
             webDavRepository.deleteEntry(id)
             webdavDomainList = webdavDomainList.filter { it.id != id }
+            _filteredWebDavDomainListFlow.value = listOf()
+            delay(300) // workaround to ensure the network availability icon display correctly
             _filteredWebDavDomainListFlow.value = webdavDomainList
         } catch (e: Exception) {
             logger.e(e.message ?: "Error occurred")
