@@ -2,7 +2,7 @@ package xyz.kgy_production.webdavebookmanager.data
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
+import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.decrypt

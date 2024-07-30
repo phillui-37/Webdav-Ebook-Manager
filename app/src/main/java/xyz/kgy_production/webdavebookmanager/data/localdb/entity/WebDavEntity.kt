@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.data.localdb
+package xyz.kgy_production.webdavebookmanager.data.localdb.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity

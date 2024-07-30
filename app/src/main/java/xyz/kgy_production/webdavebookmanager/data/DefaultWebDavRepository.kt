@@ -4,8 +4,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavDAO
-import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavEntity
+import xyz.kgy_production.webdavebookmanager.data.localdb.dao.WebDavDAO
+import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.di.DefaultDispatcher
 import xyz.kgy_production.webdavebookmanager.util.Logger

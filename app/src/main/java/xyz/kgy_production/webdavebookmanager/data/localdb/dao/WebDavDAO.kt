@@ -1,10 +1,11 @@
-package xyz.kgy_production.webdavebookmanager.data.localdb
+package xyz.kgy_production.webdavebookmanager.data.localdb.dao
 
 import androidx.room.Dao
 import androidx.room.Fts4
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
+import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
 
 @Fts4
 @Dao
