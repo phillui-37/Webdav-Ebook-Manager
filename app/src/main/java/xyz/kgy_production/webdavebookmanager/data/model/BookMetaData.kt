@@ -16,6 +16,7 @@ data class BookMetaData(
     val relativePath: String,
     val isRead: Boolean = false,
     val readProgress: Double = .0,
+    val md5: String? = null,
     val bookmark: List<Pair<String, Double>> = listOf(),
     @Serializable(with = LocalDateTimeSerializer::class)
     val lastUpdated: LocalDateTime,

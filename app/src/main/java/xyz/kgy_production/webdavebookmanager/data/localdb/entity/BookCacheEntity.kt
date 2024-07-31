@@ -27,5 +27,6 @@ data class BookCacheEntity(
     @ColumnInfo(name = "file_type") val fileType: String,
     @ColumnInfo(name = "is_read") val isRead: Boolean,
     @ColumnInfo(name = "read_progress") val readProgress: Double,
+    @ColumnInfo(name = "md5") val md5: String,
     @ColumnInfo(name = "last_update") val lastUpdate: String,
 )
