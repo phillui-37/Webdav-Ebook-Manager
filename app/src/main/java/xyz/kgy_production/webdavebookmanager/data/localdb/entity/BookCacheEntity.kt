@@ -9,7 +9,7 @@ import androidx.room.PrimaryKey
     tableName = "book_cache",
     foreignKeys = [ForeignKey(
         entity = WebDavEntity::class,
-        parentColumns = arrayOf("id"),
+        parentColumns = arrayOf("rowid"),
         childColumns = arrayOf("web_dav_id"),
         onDelete = ForeignKey.CASCADE,
     )]

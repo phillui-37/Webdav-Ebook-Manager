@@ -12,15 +12,10 @@ import androidx.room.PrimaryKey
         parentColumns = arrayOf("id"),
         childColumns = arrayOf("book_id"),
         onDelete = ForeignKey.CASCADE
-    ), ForeignKey(
-        entity = BookTagsEntity::class,
-        parentColumns = arrayOf("id"),
-        childColumns = arrayOf("tag_id"),
-        onDelete = ForeignKey.CASCADE
     )]
 )
 data class BookTagsEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     @ColumnInfo(name = "book_id") val bookId: Int,
-    @ColumnInfo(name = "tag_id") val tagId: Int,
+    @ColumnInfo(name = "tag") val tag: String,
 )

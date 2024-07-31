@@ -6,13 +6,11 @@ import xyz.kgy_production.webdavebookmanager.data.localdb.dao.BookBookmarkDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.dao.BookCacheDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.dao.BookTagsDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.dao.DirTreeCacheDAO
-import xyz.kgy_production.webdavebookmanager.data.localdb.dao.TagsDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.dao.WebDavDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.entity.BookBookmarkEntity
 import xyz.kgy_production.webdavebookmanager.data.localdb.entity.BookCacheEntity
 import xyz.kgy_production.webdavebookmanager.data.localdb.entity.BookTagsEntity
 import xyz.kgy_production.webdavebookmanager.data.localdb.entity.DirTreeCacheEntity
-import xyz.kgy_production.webdavebookmanager.data.localdb.entity.TagsEntity
 import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
 
 @Database(
@@ -22,7 +20,6 @@ import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
         BookCacheEntity::class,
         BookBookmarkEntity::class,
         BookTagsEntity::class,
-        TagsEntity::class,
     ],
     version = 1,
     exportSchema = true,
@@ -33,5 +30,4 @@ abstract class WebDavDatabase : RoomDatabase() {
     abstract fun bookCacheDao(): BookCacheDAO
     abstract fun bookBookmarkDao(): BookBookmarkDAO
     abstract fun bookTagsDao(): BookTagsDAO
-    abstract fun tagsDao(): TagsDAO
 }

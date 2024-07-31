@@ -29,16 +29,16 @@ interface BookCacheDAO {
     suspend fun getByWebDavIdAndUrl(id: Int, url: String): BookCacheEntity?
 
     @Query("SELECT * FROM book_cache WHERE id = :id")
-    suspend fun getById(id: Int)
+    suspend fun getById(id: Int): BookCacheEntity?
 
     @Query("SELECT * FROM book_cache WHERE read_progress = 0.0 AND is_read = 0")
-    suspend fun getAllUnread()
+    suspend fun getAllUnread(): List<BookCacheEntity>
 
     @Query("SELECT * FROM book_cache WHERE read_progress > 0.0 AND is_read = 0")
-    suspend fun getAllReading()
+    suspend fun getAllReading(): List<BookCacheEntity>
 
     @Query("SELECT * FROM book_cache WHERE is_read = 1")
-    suspend fun getAllRead()
+    suspend fun getAllRead(): List<BookCacheEntity>
 
     @Insert
     suspend fun insert(data: BookCacheEntity)
