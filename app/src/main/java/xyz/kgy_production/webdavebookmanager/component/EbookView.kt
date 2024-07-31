@@ -101,7 +101,6 @@ private fun CommonEbookView(
     showErrorMessage: (String) -> Unit,
 ) {
     val logger by Logger.delegate("CommonEbookView")
-    logger.d(">>>$fileUri\n${webViewRef.value}\n$initScrollValue\n$updateScrollState")
     logger.d("try to render content of $fileUri")
     val ctx = LocalContext.current
     var localFileUrl by remember { mutableStateOf("") }
@@ -118,7 +117,7 @@ private fun CommonEbookView(
             logger.d("ready to render file by script")
             delay(WEBVIEW_COMMON_DELAY.toLong())
             webViewRef.value!!.evaluateJavascript(script) {
-                logger.d("run script: $it")
+                logger.d("run init script done")
             }
         }
     }

@@ -2,7 +2,6 @@ package xyz.kgy_production.webdavebookmanager
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import android.webkit.WebView
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.HiltAndroidApp
@@ -24,6 +23,7 @@ class MainApplication : Application() {
         super.onCreate()
         createDevContent()
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+        // TODO download required js when start
     }
 
     private fun createDevContent() {

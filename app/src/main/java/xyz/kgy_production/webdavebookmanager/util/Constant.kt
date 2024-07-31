@@ -16,7 +16,7 @@ enum class ThemeOption {
 }
 
 enum class ConfigKey {
-    THEME_OPTION;
+    THEME_OPTION, CACHED_ASSET_LIST;
 }
 
 object DateTimePattern {

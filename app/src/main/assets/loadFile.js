@@ -26,6 +26,13 @@ new MutationObserver((_, observer) => {
                 Android.updateScrollState(e.detail.fraction);
             });
             console.log('reader scroll listener attached');
+
+            // change layout to scrolling
+//            const menuBtn = Array.from(document.getElementsByTagName('li'))
+//                .filter(it => it.getAttribute('role') !== 'none' && it.getAttribute('aria-checked') === 'false')[0];
+//            menuBtn.dispatchEvent(new Event('click'));
+//            console.log('changed layout to scrolling')
+
             observer.disconnect();
             done = true;
             clearTimeout(scrollSetTimeoutId);

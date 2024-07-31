@@ -13,7 +13,8 @@ data class Result<T>(
     val isFail: Boolean
         get() = error != null
 
-    fun <U> next(getResult: () -> Result<U>): Result<*> = if (isFail) this else getResult()
+    fun next(getResult: () -> Result<T>): Result<T> = if (isFail) this else getResult()
+    fun or(getResult: () -> Result<T>): Result<T> = if (!isFail) this else getResult()
     fun get() = result
     fun getError() = error
 }

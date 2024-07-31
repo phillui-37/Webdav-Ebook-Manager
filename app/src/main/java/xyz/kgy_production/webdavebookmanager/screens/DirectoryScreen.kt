@@ -121,10 +121,10 @@ fun DirectoryScreen(
                 // TODO need to check network status and conf->current path last updated, not always need to be updated
                 contentList = it
                 isLoading = false
-                // TODO update conf to latest list
-                conf?.let { _conf ->
-                    conf = _conf
-                }
+                // TODO update conf to latest list if have changes
+//                conf?.let { _conf ->
+//                    conf = _conf
+//                }
             }
         }
     }
@@ -243,9 +243,11 @@ fun DirectoryScreen(
 
     LaunchedEffect(Unit) {
         if (model.url == currentPath)
-            conf = firstTimeLaunchCheck(model) {
-                logger.d("first time launch for ")
-                showFirstTimeDialog = true
+            coroutineScope.launch {
+                conf = firstTimeLaunchCheck(model) {
+                    logger.d("first time launch for ${model.url}")
+                    showFirstTimeDialog = true
+                }
             }
     }
 }
@@ -278,10 +280,10 @@ private fun ContentRow(content: DirectoryViewModel.ContentData, onClick: (String
     }
 }
 
-private fun firstTimeLaunchCheck(
+private suspend fun firstTimeLaunchCheck(
     model: WebDavModel,
     onIsFirstTime: () -> Unit
-) = runBlocking(Dispatchers.IO) {
+): WebDavCacheData? {
     var conf: WebDavCacheData? = null
     getFileFromWebDav(
         BOOK_METADATA_CONFIG_FILENAME,
@@ -295,7 +297,7 @@ private fun firstTimeLaunchCheck(
         onIsFirstTime()
     }
 
-    conf
+    return conf
 }
 
 @Composable

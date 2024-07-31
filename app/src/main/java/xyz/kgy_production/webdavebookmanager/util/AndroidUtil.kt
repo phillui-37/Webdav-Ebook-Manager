@@ -10,25 +10,40 @@ import xyz.kgy_production.webdavebookmanager.BuildConfig
 import java.io.File
 
 fun Context.getShareDir() = "$filesDir/share"
+fun Context.getExtAssetsDir() = "$filesDir/extAssets"
+
+private fun Context.saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
+    File(path).mkdirs()
+    val file = File(path, fileName)
+    if (!file.exists()) {
+        file.outputStream().write(getData())
+    }
+    return file
+}
 
 fun Context.saveShareFile(data: ByteArray, fileName: String, path: String? = null) =
     saveShareFile(fileName, path) { data }
 
 fun Context.saveShareFile(fileName: String, path: String? = null, getData: () -> ByteArray): File {
     val logger by Logger.delegate(this::class.java)
-    val dir = "${getShareDir()}/share".let {
+    val dir = getShareDir().let {
         if (!path.isNullOrEmpty())
             if (path.startsWith("/")) "$it$path" else "$it/$path"
         else
             it
     }
     logger.d("dir to save: $dir")
-    File(dir).mkdirs()
-    val file = File(dir, fileName)
-    if (!file.exists()) {
-        file.outputStream().write(getData())
-    }
-    return file
+    return saveFile(fileName, dir, getData)
+}
+
+fun Context.saveExtAssetsFile(data: ByteArray, fileName: String) =
+    saveFile(fileName, getExtAssetsDir()) { data }
+
+fun Context.saveExtAssetsFile(fileName: String, getData: () -> ByteArray) =
+    saveFile(fileName, getExtAssetsDir(), getData)
+
+fun Context.getExtAssetsFile(fileName: String): File {
+    return File(getExtAssetsDir(), fileName)
 }
 
 fun Context.removeAllShareFiles() {

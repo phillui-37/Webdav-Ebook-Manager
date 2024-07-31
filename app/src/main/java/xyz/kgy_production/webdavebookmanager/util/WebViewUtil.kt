@@ -17,6 +17,23 @@ import android.webkit.WebViewClient
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toLowerCase
 import androidx.core.net.toFile
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.request.get
+import io.ktor.client.statement.readBytes
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
+import xyz.kgy_production.webdavebookmanager.common.Result
+import java.io.File
 
 private fun getChromeClient() = object : WebChromeClient() {
     private val logger by Logger.delegate("WebView")
@@ -72,29 +89,78 @@ private fun getWebViewClient(
             logger.d("Load resource $url")
         }
 
+        private fun localFileHandling(url: String): Result<WebResourceResponse?> {
+            if (!url.startsWith("${EBOOK_READER_LIB_URL}file://")) return Result.fail("")
+            logger.d("local file request received")
+            val fileUri =
+                Uri.parse(url.replace("${EBOOK_READER_LIB_URL}file://", "file://"))
+            logger.d("uri: $fileUri")
+            val file = fileUri.toFile()
+            logger.d("file: size->${file.length()}, type->${file.extension}")
+            val mimeType = ctx.contentResolver.getType(fileUri)
+                .let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+                ?: fallbackMimeTypeMapping(file.extension)
+            logger.d("mimeType: $mimeType, file: ${file.absolutePath}")
+            return Result.ok(WebResourceResponse(mimeType, "UTF-8", file.inputStream()))
+        }
+
+        private fun cacheAssetFile(url: String, filename: String, decodedCachedList: List<String>) {
+            CoroutineScope(Dispatchers.IO).launch {
+                HttpClient(CIO).use { client ->
+                    ctx.saveExtAssetsFile(client.get(url).readBytes(), filename)
+                    ctx.dataStore.edit {
+                        it[stringPreferencesKey(ConfigKey.CACHED_ASSET_LIST.name)] =
+                            Json.encodeToString(decodedCachedList + listOf(filename))
+                    }
+                }
+            }
+        }
+
+        private fun assetFileHandling(url: String): Result<WebResourceResponse?> {
+            if (!url.endsWith(".js") && !url.endsWith(".css")) return Result.fail("")
+            logger.d("asset file: $url")
+            val filename = url.split("/").last()
+            return runBlocking(Dispatchers.IO) {
+                val cachedList = ctx.dataStore.data
+                    .map { it[stringPreferencesKey(ConfigKey.CACHED_ASSET_LIST.name)] }
+                    .firstOrNull() ?: "[]"
+                val decodedCachedList = Json.decodeFromString<List<String>>(cachedList)
+                logger.d("cached assets list: $cachedList")
+
+                var file: File? = null
+                if (!decodedCachedList.contains(filename)) {
+                    logger.d("$filename not cached")
+                    cacheAssetFile(url, filename, decodedCachedList)
+                } else {
+                    logger.d("$filename cached")
+                    file = ctx.getExtAssetsFile(filename)
+                }
+                file?.let {
+                    logger.d("asset uri ${Uri.fromFile(file)}")
+                    Result.ok(
+                        WebResourceResponse(
+                            if (filename.endsWith(".js")) "text/javascript" else "test/css",
+                            "UTF-8",
+                            it.inputStream()
+                        )
+                    )
+                } ?: Result.fail("")
+            }
+        }
+
         override fun shouldInterceptRequest(
             view: WebView?,
             request: WebResourceRequest?
         ): WebResourceResponse? {
-            logger.d("${request?.url}")
+            logger.d("shouldInterceptRequest: ${request?.url}")
+            // TODO save file to cache and load file from cache
             if (request?.url != null) {
                 try {
                     val urlStr = request.url.toString()
-                    if (urlStr.startsWith("${EBOOK_READER_LIB_URL}file://")) {
-                        logger.d("local file request received")
-                        val fileUri =
-                            Uri.parse(urlStr.replace("${EBOOK_READER_LIB_URL}file://", "file://"))
-                        logger.d("uri: $fileUri")
-                        val file = fileUri.toFile()
-                        logger.d("file: size->${file.length()}, type->${file.extension}")
-                        val mimeType = ctx.contentResolver.getType(fileUri)
-                            .let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
-                            ?: fallbackMimeTypeMapping(file.extension)
-                        logger.d("mimeType: $mimeType, file: ${file.absolutePath}")
-                        return WebResourceResponse(mimeType, "UTF-8", file.inputStream())
-                    } else {
-                        return super.shouldInterceptRequest(view, request)
-                    }
+                    return localFileHandling(urlStr)
+                        .or { assetFileHandling(urlStr) }
+                        .or { Result.ok(super.shouldInterceptRequest(view, request)) }
+                        .get()
                 } catch (e: RuntimeException) {
                     showErrorMsg(e.message!!)
                     return null
