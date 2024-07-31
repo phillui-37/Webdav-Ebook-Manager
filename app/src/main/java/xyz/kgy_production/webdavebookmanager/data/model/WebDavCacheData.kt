@@ -12,6 +12,7 @@ data class WebDavCacheData(
     val bookMetaDataLs: List<BookMetaData>
 ) {
     private val logger by Logger.delegate(this::class.java)
+
     data class WebDavDirTreeNode(
         val current: String,
         val parent: WebDavDirTreeNode?,
@@ -59,26 +60,59 @@ data class WebDavCacheData(
 
     fun dirToTree(): WebDavDirTreeNode {
         val root = WebDavDirTreeNode("/", null, mutableListOf())
-        fun findNode(targetParent: String, currentNode: WebDavDirTreeNode = root): WebDavDirTreeNode? {
-            if (currentNode.current == targetParent) return currentNode
+        val retryList = mutableListOf<WebDavDirNode>()
+
+        fun findNode(targetParent: String, currentNode: WebDavDirTreeNode): WebDavDirTreeNode? {
+//            logger.d("${currentNode.parent?.current}/${currentNode.current} vs $targetParent")
+            if (currentNode.current == if (targetParent == "/") targetParent else targetParent.substring(
+                    1,
+                    targetParent.length
+                )
+            )
+                return currentNode
             return currentNode.children.fold(null as WebDavDirTreeNode?) { acc, webDavDirTreeNode ->
                 acc ?: findNode(targetParent, webDavDirTreeNode)
             }
         }
+
         dirCache.forEach { dir ->
             if (dir.current != "/") {
-                findNode(dir.parent!!)
-                    ?.let {
-                        (it.children as MutableList).add(
-                            WebDavDirTreeNode(
-                                dir.current,
-                                it,
-                                mutableListOf()
-                            )
+                findNode(dir.parent!!, root)?.let {
+                    (it.children as MutableList).add(
+                        WebDavDirTreeNode(
+                            dir.current,
+                            it,
+                            mutableListOf()
                         )
-                    } ?: logger.e("dirToTree: $dir cannot find parent")
+                    )
+                } ?: run {
+                    logger.e("dirToTree: $dir cannot find parent")
+                    retryList.add(dir)
+                }
             }
         }
+
+        var oldListCount = 0
+        val toExclude = mutableListOf<WebDavDirNode>()
+        // fixed point checking
+        while (oldListCount != retryList.size && retryList.size > 0) {
+            oldListCount = retryList.size
+            toExclude.clear()
+            retryList.forEach { dir ->
+                findNode(dir.parent!!, root)?.let {
+                    toExclude.add(dir)
+                    (it.children as MutableList).add(
+                        WebDavDirTreeNode(
+                            dir.current,
+                            it,
+                            mutableListOf()
+                        )
+                    )
+                } ?: logger.e("dirToTree: retry $dir cannot find parent")
+            }
+            toExclude.forEach(retryList::remove)
+        }
+
         return root
     }
 }
