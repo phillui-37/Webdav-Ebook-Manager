@@ -23,7 +23,6 @@ class MainApplication : Application() {
         super.onCreate()
         createDevContent()
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        // TODO download required js when start
     }
 
     private fun createDevContent() {

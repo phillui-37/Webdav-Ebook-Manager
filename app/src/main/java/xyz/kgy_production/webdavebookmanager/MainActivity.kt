@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -14,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
@@ -23,12 +25,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
+import xyz.kgy_production.webdavebookmanager.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.ThemeOption
@@ -105,6 +109,11 @@ class MainActivity : ComponentActivity() {
                             themeViewModel.updateThemeSetting(opt, dataStore)
                         }
                     )
+                }
+                // to load js/css asap
+                if (isNetworkAvailable) {
+                    val uri = Uri.parse("android.resource://${packageName}/${R.raw.epub}")
+                    GenericEbookView(modifier = Modifier.size(1.dp), fileUri = uri) { logger.e(it) }
                 }
             }
         }
