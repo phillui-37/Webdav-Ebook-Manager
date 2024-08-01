@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.screens
+package xyz.kgy_production.webdavebookmanager.ui.screens
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -42,8 +42,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
-import xyz.kgy_production.webdavebookmanager.component.DirectoryTopBar
+import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
+import xyz.kgy_production.webdavebookmanager.ui.component.DirectoryTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
@@ -59,7 +59,7 @@ import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
-import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel

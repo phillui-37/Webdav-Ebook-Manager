@@ -45,7 +45,7 @@ import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
-import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger

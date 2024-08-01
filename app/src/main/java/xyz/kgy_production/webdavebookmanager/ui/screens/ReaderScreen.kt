@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.screens
+package xyz.kgy_production.webdavebookmanager.ui.screens
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -29,9 +29,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.component.GenericEbookView
+import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.util.Logger
-import xyz.kgy_production.webdavebookmanager.viewmodel.ReaderViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ReaderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

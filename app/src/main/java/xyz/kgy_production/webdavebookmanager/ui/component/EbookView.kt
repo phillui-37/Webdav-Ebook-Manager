@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.component
+package xyz.kgy_production.webdavebookmanager.ui.component
 
 import android.net.Uri
 import android.webkit.JavascriptInterface

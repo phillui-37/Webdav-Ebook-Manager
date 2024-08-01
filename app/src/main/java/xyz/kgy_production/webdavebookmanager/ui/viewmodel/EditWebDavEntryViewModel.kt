@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.viewmodel
+package xyz.kgy_production.webdavebookmanager.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel

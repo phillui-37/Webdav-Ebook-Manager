@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.screens
+package xyz.kgy_production.webdavebookmanager.ui.screens
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,16 +14,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.component.SettingTopBar
+import xyz.kgy_production.webdavebookmanager.ui.component.SettingTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.ThemeOption
-import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
-import xyz.kgy_production.webdavebookmanager.viewmodel.SettingViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.FnUpdateThemeSetting
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.SettingViewModel
 
 
 @Composable

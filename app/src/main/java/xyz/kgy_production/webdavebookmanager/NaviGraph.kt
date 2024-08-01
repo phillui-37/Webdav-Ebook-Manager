@@ -18,15 +18,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import xyz.kgy_production.webdavebookmanager.component.AppModalDrawer
-import xyz.kgy_production.webdavebookmanager.screens.DirectoryScreen
-import xyz.kgy_production.webdavebookmanager.screens.EditWebDavEntryScreen
-import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
-import xyz.kgy_production.webdavebookmanager.screens.ReaderScreen
-import xyz.kgy_production.webdavebookmanager.screens.SettingScreen
+import xyz.kgy_production.webdavebookmanager.ui.component.AppModalDrawer
+import xyz.kgy_production.webdavebookmanager.ui.screens.DirectoryScreen
+import xyz.kgy_production.webdavebookmanager.ui.screens.EditWebDavEntryScreen
+import xyz.kgy_production.webdavebookmanager.ui.screens.HomeScreen
+import xyz.kgy_production.webdavebookmanager.ui.screens.ReaderScreen
+import xyz.kgy_production.webdavebookmanager.ui.screens.SettingScreen
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import xyz.kgy_production.webdavebookmanager.viewmodel.FnUpdateThemeSetting
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.FnUpdateThemeSetting
 
 @Composable
 fun NaviGraph(

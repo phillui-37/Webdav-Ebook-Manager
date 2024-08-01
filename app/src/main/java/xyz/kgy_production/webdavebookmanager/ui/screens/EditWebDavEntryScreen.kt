@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.screens
+package xyz.kgy_production.webdavebookmanager.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,12 +43,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.component.CommonTopBar
+import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.util.Logger
-import xyz.kgy_production.webdavebookmanager.viewmodel.EditWebDavEntryViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.EditWebDavEntryViewModel
 
 @Composable
 fun EditWebDavEntryScreen(

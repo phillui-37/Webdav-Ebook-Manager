@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.screens
+package xyz.kgy_production.webdavebookmanager.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -57,7 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.LocalIsNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.component.HomeTopBar
+import xyz.kgy_production.webdavebookmanager.ui.component.HomeTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
@@ -68,7 +68,7 @@ import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.removeAllShareFiles
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import xyz.kgy_production.webdavebookmanager.viewmodel.HomeViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.HomeViewModel
 
 private data class DeleteEntryData(
     val id: Int,

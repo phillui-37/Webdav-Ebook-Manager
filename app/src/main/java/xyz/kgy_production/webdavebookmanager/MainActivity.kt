@@ -32,12 +32,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
-import xyz.kgy_production.webdavebookmanager.component.GenericEbookView
+import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.ThemeOption
 import xyz.kgy_production.webdavebookmanager.util.isSystemDarkMode
-import xyz.kgy_production.webdavebookmanager.viewmodel.ThemeViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ThemeViewModel
 import java.io.File
 
 val LocalIsDarkTheme = staticCompositionLocalOf { false }

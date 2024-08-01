@@ -1,8 +1,7 @@
-package xyz.kgy_production.webdavebookmanager.component
+package xyz.kgy_production.webdavebookmanager.ui.component
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +39,7 @@ import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
 import xyz.kgy_production.webdavebookmanager.NaviActions
 import xyz.kgy_production.webdavebookmanager.Path
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.screens.HomeScreen
+import xyz.kgy_production.webdavebookmanager.ui.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.ui.theme.DRAWER_WIDTH_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme

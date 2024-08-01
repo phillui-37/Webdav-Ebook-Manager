@@ -3,7 +3,7 @@ package xyz.kgy_production.webdavebookmanager.data.model
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaType
 import xyz.kgy_production.webdavebookmanager.util.Logger
-import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import java.time.LocalDateTime
 
 @Serializable

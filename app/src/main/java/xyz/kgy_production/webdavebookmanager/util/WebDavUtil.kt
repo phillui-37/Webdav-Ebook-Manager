@@ -14,7 +14,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
-import xyz.kgy_production.webdavebookmanager.viewmodel.DirectoryViewModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 
 private val logger by Logger.delegate("WebDavUtil")
 

@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.viewmodel
+package xyz.kgy_production.webdavebookmanager.ui.viewmodel
 
 import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme

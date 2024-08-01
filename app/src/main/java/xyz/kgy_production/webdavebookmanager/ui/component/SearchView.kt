@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.component
+package xyz.kgy_production.webdavebookmanager.ui.component
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
