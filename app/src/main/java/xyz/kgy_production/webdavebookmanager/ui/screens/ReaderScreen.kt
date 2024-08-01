@@ -30,8 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
-import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ReaderViewModel
+import xyz.kgy_production.webdavebookmanager.util.Logger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +45,7 @@ fun ReaderScreen(
     val logger by Logger.delegate("ReaderScr")
     logger.d("webDavId: $webDavId, uri: $bookUri, fromDir: $fromDirUrl")
     val model = runBlocking(Dispatchers.IO) { viewModel.getWebDavModel(webDavId) }
-    val uri = remember { mutableStateOf(bookUri) } // TODO refresh: clear and load again
+    val uri = remember { mutableStateOf(bookUri) }
     val snackBarHostState = remember { SnackbarHostState() }
     val ctx = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -68,6 +68,7 @@ fun ReaderScreen(
                     }) {
                         Icon(Icons.Filled.Refresh, "Refresh") // TODO i18n
                     }
+                    // TODO bookmark,
                 }
             )
         },
@@ -83,7 +84,10 @@ fun ReaderScreen(
             GenericEbookView(
                 modifier = Modifier
                     .fillMaxSize(),
-                fileUri = uri.value
+                fileUri = uri.value,
+                scrollUpdateCallback = {
+                    // TODO
+                }
             ) {
                 coroutineScope.launch {
                     snackBarHostState.showSnackbar(
