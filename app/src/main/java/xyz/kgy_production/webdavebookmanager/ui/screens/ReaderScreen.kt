@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.ui.screens
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +26,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ReaderViewModel
@@ -37,15 +35,15 @@ import xyz.kgy_production.webdavebookmanager.util.Logger
 @Composable
 fun ReaderScreen(
     webDavId: Int,
-    bookUri: Uri,
+    bookUrl: String,
     fromDirUrl: String,
     onBack: () -> Unit,
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val logger by Logger.delegate("ReaderScr")
-    logger.d("webDavId: $webDavId, uri: $bookUri, fromDir: $fromDirUrl")
-    val model = runBlocking(Dispatchers.IO) { viewModel.getWebDavModel(webDavId) }
-    val uri = remember { mutableStateOf(bookUri) }
+    logger.d("webDavId: $webDavId, url: $bookUrl, fromDir: $fromDirUrl")
+//    val model = runBlocking(Dispatchers.IO) { viewModel.getWebDavModel(webDavId) }
+    val url = remember { mutableStateOf(bookUrl) }
     val snackBarHostState = remember { SnackbarHostState() }
     val ctx = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -60,10 +58,10 @@ fun ReaderScreen(
                 title = { Text("") },
                 actions = {
                     IconButton(onClick = {
-                        uri.value = Uri.EMPTY
+                        url.value = ""
                         CoroutineScope(Dispatchers.IO).launch {
                             delay(1000)
-                            uri.value = bookUri
+                            url.value = bookUrl
                         }
                     }) {
                         Icon(Icons.Filled.Refresh, "Refresh") // TODO i18n
@@ -84,7 +82,8 @@ fun ReaderScreen(
             GenericEbookView(
                 modifier = Modifier
                     .fillMaxSize(),
-                fileUri = uri.value,
+                fileUrl = url.value,
+                webDavId = webDavId,
                 scrollUpdateCallback = {
                     // TODO
                 }

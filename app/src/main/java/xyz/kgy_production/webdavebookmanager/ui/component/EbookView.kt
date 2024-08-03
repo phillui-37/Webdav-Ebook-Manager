@@ -26,14 +26,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toFile
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.EbookViewModel
 import xyz.kgy_production.webdavebookmanager.util.EBOOK_READER_LIB_URL
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.WEBVIEW_COMMON_DELAY
+import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.getWebView
+import xyz.kgy_production.webdavebookmanager.util.saveShareFile
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import kotlin.math.roundToInt
 
 /// TODO i18n
@@ -56,14 +61,37 @@ private class JsInterface(
 @Composable
 fun GenericEbookView(
     modifier: Modifier = Modifier,
-    fileUri: Uri,
+    fileUrl: String? = null,
+    fileUri: Uri? = null,
+    webDavId: Int,
     scrollUpdateCallback: ((Double) -> Unit)? = null,
+    vm: EbookViewModel = hiltViewModel(),
     showErrorMessage: (String) -> Unit,
 ) {
+    require(fileUrl != null || fileUri != null) { "Either fileUri or fileUrl should be provided" }
     val logger by Logger.delegate("GenericEbookView")
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // todo init scroll value
     var initScrollValue by remember { mutableDoubleStateOf(.0) }
+    val _fileUri = remember { mutableStateOf<Uri?>(fileUri) }
+    val ctx = LocalContext.current
+
+    LaunchedEffect(null) {
+        CoroutineScope(Dispatchers.IO).launch {
+            if (fileUrl != null) {
+                val model = vm.getWebDavModel(webDavId)
+                model?.let {
+                    val paths = fileUrl.split("/")
+                    val file = ctx.saveShareFile(
+                        paths.last().urlDecode(),
+                        "/${it.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
+                            .replace(model.url, "").urlDecode()
+                    ) { getFileFromWebDav(fileUrl, it.loginId, it.password) ?: byteArrayOf() }
+                    _fileUri.value = Uri.fromFile(file)
+                }
+            }
+        }
+    }
 
     fun scrollStateUpdate(newValue: Double) {
         logger.d("scrolled to $newValue")
@@ -71,19 +99,19 @@ fun GenericEbookView(
         initScrollValue = newValue
     }
 
-    if (fileUri.toString().isEmpty())
+    if (_fileUri.value?.toString() == null || _fileUri.value.toString().isEmpty())
         EmptyView()
     else if (fileUri.toString().endsWith(".txt"))
         PureTextView(
             modifier = modifier,
-            fileUri = fileUri,
+            fileUri = _fileUri.value!!,
             initScrollValue = initScrollValue,
             updateScrollState = ::scrollStateUpdate
         )
     else
         CommonEbookView(
             modifier = modifier,
-            fileUri = fileUri,
+            fileUri = _fileUri.value!!,
             webViewRef = webViewRef,
             initScrollValue = initScrollValue,
             updateScrollState = ::scrollStateUpdate,

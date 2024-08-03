@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.util
 
-import android.util.Log
 import at.bitfire.dav4jvm.BasicDigestAuthHandler
 import at.bitfire.dav4jvm.DavCollection
 import at.bitfire.dav4jvm.exception.ConflictException
@@ -108,12 +107,12 @@ fun writeDataToWebDav(
     }
 }
 
-inline fun getFileFromWebDav(
+fun getFileFromWebDav(
     filename: String,
     url: String,
     loginId: String,
     password: String,
-    crossinline resultSetter: (ByteArray?) -> Unit,
+    resultSetter: (ByteArray?) -> Unit,
 ) {
     val fileurl = "$url/$filename"
     try {
@@ -122,16 +121,16 @@ inline fun getFileFromWebDav(
             resultSetter(if (response.code == 200) response.body?.bytes() else null)
         }
     } catch (e: NotFoundException) {
-        Log.d("getFileFromWebDav", "file $filename not exists")
+        logger.d("[getFileFromWebDav] file $filename not exists")
         resultSetter(null)
     }
 }
 
-inline fun getFileFromWebDav(
+fun getFileFromWebDav(
     fullUrl: String,
     loginId: String,
     password: String,
-    crossinline resultSetter: (ByteArray?) -> Unit,
+    resultSetter: (ByteArray?) -> Unit,
 ) {
     try {
         val collection = getWebDavCollection(fullUrl, loginId, password)
@@ -139,7 +138,24 @@ inline fun getFileFromWebDav(
             resultSetter(if (response.code == 200) response.body?.bytes() else null)
         }
     } catch (e: NotFoundException) {
-        Log.d("getFileFromWebDav", "file $fullUrl not exists")
+        logger.d("[getFileFromWebDav] file $fullUrl not exists")
         resultSetter(null)
     }
+}
+
+fun getFileFromWebDav(
+    fullUrl: String,
+    loginId: String,
+    password: String,
+) = try {
+    val collection = getWebDavCollection(fullUrl, loginId, password)
+    var result: ByteArray? = null
+    collection.get(accept = "/", headers = null) { response ->
+        if (response.code == 200)
+            result = response.body?.bytes()
+    }
+    result
+} catch (e: NotFoundException) {
+    logger.d("[getFileFromWebDav] file $fullUrl not exists")
+    null
 }

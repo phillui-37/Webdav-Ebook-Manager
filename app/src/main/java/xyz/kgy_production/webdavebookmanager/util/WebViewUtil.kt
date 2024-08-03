@@ -19,15 +19,9 @@ import androidx.compose.ui.text.toLowerCase
 import androidx.core.net.toFile
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.request.get
-import io.ktor.client.statement.readBytes
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -104,14 +98,23 @@ private fun getWebViewClient(
             return Result.ok(WebResourceResponse(mimeType, "UTF-8", file.inputStream()))
         }
 
-        private fun cacheAssetFile(url: String, filename: String, decodedCachedList: List<String>) {
-            CoroutineScope(Dispatchers.IO).launch {
-                HttpClient(CIO).use { client ->
-                    ctx.saveExtAssetsFile(client.get(url).readBytes(), filename)
+        private fun cacheAssetFile(
+            url: String,
+            filename: String,
+            decodedCachedList: List<String>
+        ): File? {
+            return runBlocking(Dispatchers.IO) {
+                FileFetchUtil.sendFetchRequest(url, ctx.getExtAssetsDir())
+                val result = FileFetchUtil.getResult(url)
+                if (result) {
                     ctx.dataStore.edit {
                         it[stringPreferencesKey(ConfigKey.CACHED_ASSET_LIST.name)] =
                             Json.encodeToString(decodedCachedList + listOf(filename))
                     }
+                    File(ctx.getExtAssetsDir(), filename)
+                } else {
+                    logger.w("asset fetch failure: $url")
+                    null
                 }
             }
         }
@@ -127,10 +130,10 @@ private fun getWebViewClient(
                 val decodedCachedList = Json.decodeFromString<List<String>>(cachedList)
                 logger.d("cached assets list: $cachedList")
 
-                var file: File? = null
+                val file: File?
                 if (!decodedCachedList.contains(filename)) {
                     logger.d("$filename not cached")
-                    cacheAssetFile(url, filename, decodedCachedList)
+                    file = cacheAssetFile(url, filename, decodedCachedList)
                 } else {
                     logger.d("$filename cached")
                     file = ctx.getExtAssetsFile(filename)

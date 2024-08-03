@@ -12,7 +12,7 @@ import java.io.File
 fun Context.getShareDir() = "$filesDir/share"
 fun Context.getExtAssetsDir() = "$filesDir/extAssets"
 
-private fun Context.saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
+fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
     File(path).mkdirs()
     val file = File(path, fileName)
     if (!file.exists()) {

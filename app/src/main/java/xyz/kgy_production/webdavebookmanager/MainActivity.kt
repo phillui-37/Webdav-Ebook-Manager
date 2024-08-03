@@ -31,14 +31,17 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
+import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ThemeViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.ThemeOption
 import xyz.kgy_production.webdavebookmanager.util.isSystemDarkMode
-import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ThemeViewModel
 import java.io.File
+import javax.inject.Inject
 
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
 val LocalIsNetworkAvailable = staticCompositionLocalOf { true }
@@ -46,6 +49,9 @@ val LocalPrivateStorage: ProvidableCompositionLocal<File?> = staticCompositionLo
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var webDavRepository: WebDavRepository
+
     companion object {
         private var _instance: ComponentActivity? = null
         private val logger by Logger.delegate(MainActivity::class.java)
@@ -88,6 +94,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isDarkState = themeViewModel.getIsDarkState(dataStore = dataStore)
             var isNetworkAvailable by remember { mutableStateOf(true) }
+            val model = runBlocking { webDavRepository.getEntryById(1) }
 
             LaunchedEffect(Unit) {
                 CoroutineScope(Dispatchers.IO).launch {
@@ -111,9 +118,13 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 // to load js/css asap
-                if (isNetworkAvailable) {
+                if (isNetworkAvailable && model != null) {
                     val uri = Uri.parse("android.resource://${packageName}/${R.raw.epub}")
-                    GenericEbookView(modifier = Modifier.size(1.dp), fileUri = uri) { logger.e(it) }
+                    GenericEbookView(
+                        modifier = Modifier.size(1.dp),
+                        webDavId = 1,
+                        fileUri = uri,
+                    ) { logger.e(it) }
                 }
             }
         }
