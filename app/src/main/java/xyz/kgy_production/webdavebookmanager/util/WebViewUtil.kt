@@ -156,7 +156,6 @@ private fun getWebViewClient(
             request: WebResourceRequest?
         ): WebResourceResponse? {
             logger.d("shouldInterceptRequest: ${request?.url}")
-            // TODO save file to cache and load file from cache
             if (request?.url != null) {
                 try {
                     val urlStr = request.url.toString()

@@ -73,6 +73,7 @@ fun DirectoryScreen(
 ) {
     // TODO search, filter<-need remote data(protobuf)<-tag/series...
     // TODO long press -> rename, add dir, upload file
+    // TODO book show tags, read status and progress
     val model = runBlocking(Dispatchers.IO) {
         viewModel.getWebDavModel(id)!!
     }

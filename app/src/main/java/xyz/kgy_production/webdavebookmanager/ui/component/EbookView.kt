@@ -41,7 +41,7 @@ import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import kotlin.math.roundToInt
 
-/// TODO i18n
+/// TODO i18n, read to end page
 
 private class JsInterface(
     private val updateScrollValue: (Double) -> Unit,
@@ -64,6 +64,7 @@ fun GenericEbookView(
     fileUrl: String? = null,
     fileUri: Uri? = null,
     webDavId: Int,
+    initProgress: Double = .0,
     scrollUpdateCallback: ((Double) -> Unit)? = null,
     vm: EbookViewModel = hiltViewModel(),
     showErrorMessage: (String) -> Unit,
@@ -72,8 +73,8 @@ fun GenericEbookView(
     val logger by Logger.delegate("GenericEbookView")
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // todo init scroll value
-    var initScrollValue by remember { mutableDoubleStateOf(.0) }
-    val _fileUri = remember { mutableStateOf<Uri?>(fileUri) }
+    var initScrollValue by remember { mutableDoubleStateOf(initProgress) }
+    val _fileUri = remember { mutableStateOf(fileUri) }
     val ctx = LocalContext.current
 
     LaunchedEffect(null) {
