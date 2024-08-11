@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.ui.screens
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -42,13 +41,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
-import xyz.kgy_production.webdavebookmanager.ui.component.DirectoryTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
+import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
+import xyz.kgy_production.webdavebookmanager.ui.component.DirectoryTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
@@ -59,7 +59,6 @@ import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
-import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel
@@ -67,7 +66,7 @@ import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 @Composable
 fun DirectoryScreen(
     id: Int,
-    toReaderScreen: (Uri, String) -> Unit,
+    toReaderScreen: (String, String) -> Unit,
     onBack: () -> Unit,
     destUrl: String? = null,
     viewModel: DirectoryViewModel = hiltViewModel(),
@@ -215,23 +214,23 @@ fun DirectoryScreen(
             items(contentList.filter { !it.isDir && byPassPatternFilter(it.fullUrl) && it.name != BOOK_METADATA_CONFIG_FILENAME }) { content ->
                 ContentRow(content = content) {
                     logger.d("File onclick: $it")
-                    val paths = it.split("/")
-                    val file = ctx.saveShareFile(
-                        paths.last().urlDecode(),
-                        "/${model.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
-                            .replace(model.url, "").urlDecode()
-                    ) {
-                        var data: ByteArray = byteArrayOf()
-                        runBlocking(Dispatchers.IO) {
-                            getFileFromWebDav(content.fullUrl, model.loginId, model.password) {
-                                data = it ?: byteArrayOf()
-                            }
-                        }
-                        data
-                    }
                     if (model.defaultOpenByThis) {
-                        toReaderScreen(Uri.fromFile(file), currentPath)
+                        toReaderScreen(it, currentPath)
                     } else {
+                        val paths = it.split("/")
+                        val file = ctx.saveShareFile(
+                            paths.last().urlDecode(),
+                            "/${model.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
+                                .replace(model.url, "").urlDecode()
+                        ) {
+                            var data: ByteArray = byteArrayOf()
+                            runBlocking(Dispatchers.IO) {
+                                getFileFromWebDav(content.fullUrl, model.loginId, model.password) {
+                                    data = it ?: byteArrayOf()
+                                }
+                            }
+                            data
+                        }
                         ctx.openWithExtApp(
                             file,
                             content.contentType!!.run { "$type/$subtype" })

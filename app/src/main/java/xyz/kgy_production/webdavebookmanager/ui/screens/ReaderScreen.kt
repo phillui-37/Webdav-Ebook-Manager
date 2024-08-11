@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ReaderViewModel
@@ -42,7 +43,7 @@ fun ReaderScreen(
 ) {
     val logger by Logger.delegate("ReaderScr")
     logger.d("webDavId: $webDavId, url: $bookUrl, fromDir: $fromDirUrl")
-//    val model = runBlocking(Dispatchers.IO) { viewModel.getWebDavModel(webDavId) }
+    val model = runBlocking(Dispatchers.IO) { viewModel.getWebDavModel(webDavId) }
     val url = remember { mutableStateOf(bookUrl) }
     val snackBarHostState = remember { SnackbarHostState() }
     val ctx = LocalContext.current

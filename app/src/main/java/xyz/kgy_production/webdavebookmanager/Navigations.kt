@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager
 
-import android.net.Uri
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import xyz.kgy_production.webdavebookmanager.util.urlEncode
@@ -26,7 +25,7 @@ object Path {
     const val READ_HISTORY = Screens.READ_HISTORY
     val READER =
         "${Screens.READER}?" + listOf(
-            RouteArgs.Reader.BOOK_URI,
+            RouteArgs.Reader.BOOK_URL,
             RouteArgs.Reader.WEBDAV_ID,
             RouteArgs.Reader.FROM_DIR_URL
         ).joinToString("&") { "$it={$it}" }
@@ -44,7 +43,7 @@ object RouteArgs {
 
     object Reader {
         const val WEBDAV_ID = "webDavId"
-        const val BOOK_URI = "bookUri"
+        const val BOOK_URL = "bookUrl"
         const val FROM_DIR_URL = "fromDirUrl"
     }
 }
@@ -101,10 +100,10 @@ class NaviActions(private val navHostController: NavHostController) {
         }
     }
 
-    fun navigateToReader(webDavId: Int, bookUri: Uri, fromDirUrl: String) {
+    fun navigateToReader(webDavId: Int, bookUrl: String, fromDirUrl: String) {
         navHostController.navigate(
-            "${Screens.READER}?${RouteArgs.Reader.BOOK_URI}=${
-                bookUri.toString().urlEncode()
+            "${Screens.READER}?${RouteArgs.Reader.BOOK_URL}=${
+                bookUrl.urlEncode()
             }&${RouteArgs.Reader.WEBDAV_ID}=${webDavId}&${RouteArgs.Reader.FROM_DIR_URL}=${fromDirUrl}"
         )
     }

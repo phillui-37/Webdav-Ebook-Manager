@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager
 
-import android.net.Uri
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
@@ -24,9 +23,8 @@ import xyz.kgy_production.webdavebookmanager.ui.screens.EditWebDavEntryScreen
 import xyz.kgy_production.webdavebookmanager.ui.screens.HomeScreen
 import xyz.kgy_production.webdavebookmanager.ui.screens.ReaderScreen
 import xyz.kgy_production.webdavebookmanager.ui.screens.SettingScreen
-import xyz.kgy_production.webdavebookmanager.util.Logger
-import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.FnUpdateThemeSetting
+import xyz.kgy_production.webdavebookmanager.util.Logger
 
 @Composable
 fun NaviGraph(
@@ -103,8 +101,8 @@ fun NaviGraph(
             val toDest = entry.arguments?.getString(RouteArgs.Directory.TO_DEST)
             DirectoryScreen(
                 id = id,
-                toReaderScreen = { uri, path ->
-                    naviActions.navigateToReader(webDavId = id, bookUri = uri, fromDirUrl = path)
+                toReaderScreen = { url, path ->
+                    naviActions.navigateToReader(webDavId = id, bookUrl = url, fromDirUrl = path)
                 },
                 destUrl = toDest,
                 onBack = navController::popBackStack
@@ -113,19 +111,17 @@ fun NaviGraph(
         composable(
             Path.READER,
             arguments = listOf(
-                navArgument(RouteArgs.Reader.BOOK_URI) { type = NavType.StringType },
+                navArgument(RouteArgs.Reader.BOOK_URL) { type = NavType.StringType },
                 navArgument(RouteArgs.Reader.WEBDAV_ID) { type = NavType.IntType },
                 navArgument(RouteArgs.Reader.FROM_DIR_URL) { type = NavType.StringType },
             )
         ) { entry ->
             val webDavId = entry.arguments?.getInt(RouteArgs.Reader.WEBDAV_ID)!!
-            val bookUri = Uri.parse(
-                entry.arguments?.getString(RouteArgs.Reader.BOOK_URI)?.urlDecode(),
-            )
+            val bookUrl = entry.arguments?.getString(RouteArgs.Reader.BOOK_URL)!!
             val fromDirUrl = entry.arguments?.getString(RouteArgs.Reader.FROM_DIR_URL)!!
             ReaderScreen(
                 webDavId = webDavId,
-                bookUri = bookUri,
+                bookUrl = bookUrl,
                 fromDirUrl = fromDirUrl,
                 onBack = {
                     navController.popBackStack()
