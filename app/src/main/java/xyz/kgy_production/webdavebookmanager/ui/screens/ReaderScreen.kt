@@ -17,10 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -77,7 +79,7 @@ fun getCache(
 fun updateCache(cacheData: WebDavCacheData, newBookMetaData: BookMetaData): WebDavCacheData {
     return cacheData.copy(
         bookMetaDataLs = cacheData.bookMetaDataLs.map {
-            if (it.relativePath == newBookMetaData.relativePath && it.name == newBookMetaData.name && it.fileType == newBookMetaData.fileType)
+            if (it.fullUrl == newBookMetaData.fullUrl && it.name == newBookMetaData.name && it.fileType == newBookMetaData.fileType)
                 newBookMetaData
             else
                 it
@@ -105,28 +107,28 @@ fun ReaderScreen(
         getCache(bookUrl, model) ?: throw RuntimeException("dir and book metadata not found")
     }
     val cacheData = remember { _cacheData.first }
-    val bookMetaData = remember { mutableStateOf(_cacheData.second.second) }
-    val url = remember { mutableStateOf(bookUrl) }
+    var bookMetaData by remember { mutableStateOf(_cacheData.second.second) }
+    var url by remember { mutableStateOf(bookUrl) }
     val snackBarHostState = remember { SnackbarHostState() }
     val ctx = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val cacheLastUpdateTime =
+    var cacheLastUpdateTime by
         remember { mutableLongStateOf(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)) }
-    val updatingToken = remember { mutableStateOf(AtomicInteger()) }
+    var updatingToken by remember { mutableStateOf(AtomicInteger()) }
 
-    DisposableEffect(bookMetaData.value) {
+    DisposableEffect(bookMetaData) {
         onDispose {
-            val token = updatingToken.value.incrementAndGet()
+            val token = updatingToken.incrementAndGet()
             CoroutineScope(Dispatchers.IO).launch {
                 val now = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-                val timeDiff = now - cacheLastUpdateTime.longValue
+                val timeDiff = now - cacheLastUpdateTime
                 if (timeDiff < 10)
                     delay(timeDiff)
-                val tokenNow = updatingToken.value.get()
-                if (token == tokenNow) { // only get the last update
+                val tokenNow = updatingToken.get()
+                if (token == tokenNow) { // only get the latest update
                     try {
                         writeDataToWebDav(
-                            Json.encodeToString(updateCache(cacheData, bookMetaData.value)),
+                            Json.encodeToString(updateCache(cacheData, bookMetaData)),
                             BOOK_METADATA_CONFIG_FILENAME,
                             model.url,
                             model.loginId,
@@ -155,10 +157,10 @@ fun ReaderScreen(
                 title = { Text("") },
                 actions = {
                     IconButton(onClick = {
-                        url.value = ""
+                        url = ""
                         CoroutineScope(Dispatchers.IO).launch {
                             delay(1000)
-                            url.value = bookUrl
+                            url = bookUrl
                         }
                     }) {
                         Icon(Icons.Filled.Refresh, "Refresh") // TODO i18n
@@ -179,11 +181,11 @@ fun ReaderScreen(
             GenericEbookView(
                 modifier = Modifier
                     .fillMaxSize(),
-                fileUrl = url.value,
+                fileUrl = url,
                 webDavId = webDavId,
-                initProgress = bookMetaData.value.readProgress,
+                initProgress = bookMetaData.readProgress,
                 scrollUpdateCallback = {
-                    bookMetaData.value = bookMetaData.value.copy(
+                    bookMetaData = bookMetaData.copy(
                         readProgress = it
                     )
                 }

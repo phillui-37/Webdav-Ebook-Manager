@@ -13,6 +13,7 @@ data class BookMetaData(
     val author: String = NOT_FILLED,
     val publisher: String = NOT_FILLED,
     val fileType: String, // from MediaType
+    val fullUrl: String,
     val relativePath: String,
     val isRead: Boolean = false,
     val readProgress: Double = .0,

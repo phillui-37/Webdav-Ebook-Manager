@@ -1,18 +1,20 @@
 package xyz.kgy_production.webdavebookmanager.ui.component
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
@@ -47,7 +49,11 @@ fun HomeTopBar(
 
 @Composable
 fun HomeTaskMenu(onFilterSites: (String) -> Unit) {
-    SearchView(onSearch = onFilterSites)
+    var isExpanded by remember { mutableStateOf(false) }
+    if (isExpanded)
+        SearchView(onSearch = onFilterSites) { isExpanded = false }
+    else
+        SearchIconButton { isExpanded = true }
 }
 
 @Composable
@@ -85,6 +91,7 @@ fun CommonTopBar(
     onSearch: ((String) -> Unit)? = null
 ) {
     val isDarkTheme = LocalIsDarkTheme.current
+    var isSearchExpanded by remember { mutableStateOf(false) }
     TopAppBar(
         title = { Text(text = title) },
         navigationIcon = {
@@ -94,7 +101,12 @@ fun CommonTopBar(
         },
         modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER,
         actions = {
-            onSearch?.let { SearchView(onSearch = it) }
+            onSearch?.let {
+                if (isSearchExpanded)
+                    SearchView(onSearch = it) { isSearchExpanded = false }
+                else
+                    SearchIconButton { isSearchExpanded = true }
+            }
         }
     )
 }
@@ -110,6 +122,8 @@ fun DirectoryTopBar(
     onFilter: () -> Unit, // TODO
 ) {
     val isDarkTheme = LocalIsDarkTheme.current
+    var isSearchExpanded by remember { mutableStateOf(false) }
+
     TopAppBar(
         title = { Text(text = title) },
         navigationIcon = {
@@ -119,7 +133,10 @@ fun DirectoryTopBar(
         },
         modifier = if (isDarkTheme) TOP_BAR_DARK_MODIFIER else TOP_BAR_WHITE_MODIFIER,
         actions = {
-            SearchView(onSearch = onSearch)
+            if (isSearchExpanded)
+                SearchView(onSearch = onSearch) { isSearchExpanded = false }
+            else
+                SearchIconButton { isSearchExpanded = true }
             FilterView(onFilter = onFilter) // TODO
             IconButton(onClick = toParentDir) {
                 Icon(Icons.Filled.ArrowUpward, stringResource(id = R.string.label_to_parent_dir))

@@ -14,8 +14,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.ui.text.toLowerCase
 import androidx.core.net.toFile
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -37,18 +35,6 @@ private fun getChromeClient() = object : WebChromeClient() {
                     "${message?.lineNumber()} of ${message?.sourceId()}"
         )
         return false
-    }
-}
-
-private fun fallbackMimeTypeMapping(fileExt: String): String {
-    return when (fileExt.toLowerCase(Locale.current)) {
-        "azw" -> "application/vnd.amazon.ebook"
-        "azw3" -> "application/vnd.amazon.mobi8-ebook"
-        "mobi" -> "application/x-mobipocket-ebook"
-        "epub" -> "application/epub+zip"
-        "pdf" -> "application/pdf"
-        "txt" -> "text/plain"
-        else -> throw RuntimeException("File type $fileExt not supported!")
     }
 }
 

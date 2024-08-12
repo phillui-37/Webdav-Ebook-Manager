@@ -37,6 +37,7 @@ import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
@@ -45,7 +46,6 @@ import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
-import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -220,7 +220,7 @@ class ScanWebDavService : JobService() {
             }
 
         val dirScanJob = getDirScanJob()
-        val bookMarshalJob = getBookMarshalJob()
+        val bookMarshalJob = getBookMarshalJob(webDavData.url)
         dirScanJob.start()
         bookMarshalJob.start()
 
@@ -330,7 +330,7 @@ class ScanWebDavService : JobService() {
         }
     }
 
-    private fun getBookMarshalJob(): Deferred<Unit> {
+    private fun getBookMarshalJob(baseUrl: String): Deferred<Unit> {
         return CoroutineScope(threadPoolDispatcher).async {
             while (true) {
                 val book = fileListQueue.receive()
@@ -340,7 +340,8 @@ class ScanWebDavService : JobService() {
                         name = book.name,
                         fileType = book.contentType?.run { "$type/$subtype" }
                             ?: BookMetaData.NOT_AVAILABLE,
-                        relativePath = book.fullUrl,
+                        fullUrl = book.fullUrl,
+                        relativePath = book.fullUrl.replace(baseUrl, "").urlDecode(),
                         lastUpdated = LocalDateTime.now()
                     ))
                     doneFileCount.addAndGet(1)
