@@ -283,7 +283,7 @@ class ScanWebDavService : JobService() {
                 2 -> "/"
                 else -> currentPath.subList(0, currentPath.size - 1).joinToString("/").urlDecode()
             },
-            ls.filter { it.isDir }.map { it.fullUrl.split("/").last().urlDecode() },
+            ls.map { it.fullUrl.split("/").last().urlDecode() },
             LocalDateTime.now(),
         )
         dirCacheList.add(dirCache)

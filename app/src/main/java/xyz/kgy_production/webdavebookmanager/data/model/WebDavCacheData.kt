@@ -6,6 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.fallbackMimeTypeMapping
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import java.time.LocalDateTime
 
 @Serializable
@@ -18,6 +19,7 @@ data class WebDavCacheData(
     data class WebDavDirTreeNode(
         val current: String,
         val parent: WebDavDirTreeNode?,
+        val isDir: Boolean,
         val children: List<WebDavDirTreeNode>
     ) {
         private val logger by Logger.delegate(this::class.java)
@@ -55,7 +57,7 @@ data class WebDavCacheData(
             return ret.reversed().joinToString("/")
         }
 
-        fun toContentData(baseUrl: String, isDir: Boolean) = run {
+        fun toContentData(baseUrl: String) = run {
             val mimeType: MediaType?
             if (isDir) {
                 mimeType = null
@@ -78,61 +80,54 @@ data class WebDavCacheData(
         }
     }
 
-    fun dirToTree(): WebDavDirTreeNode {
-        val root = WebDavDirTreeNode("/", null, mutableListOf())
-        val retryList = mutableListOf<WebDavDirNode>()
+    fun dirToTree(baseUrl: String): WebDavDirTreeNode {
+        // dir first
+        val dirNodeList = dirCache.map {
+            (it.parent to it.children) to
+                    WebDavDirTreeNode(it.current, null, true, mutableListOf())
+        }.toMutableList()
 
-        fun findNode(targetParent: String, currentNode: WebDavDirTreeNode): WebDavDirTreeNode? {
-//            logger.d("${currentNode.parent?.current},${currentNode.current} vs ${targetParent.split("/")[1]}")
-            if (currentNode.current == if (targetParent == "/")
-                    targetParent
-                else
-                    targetParent.split("/")[1]
-            )
-                return currentNode
-            return currentNode.children.fold(null as WebDavDirTreeNode?) { acc, webDavDirTreeNode ->
-                acc ?: findNode(targetParent, webDavDirTreeNode)
+        for (i in dirNodeList.indices) {
+            val currentNode = dirNodeList[i]
+            val parentIdx = dirNodeList
+                .indexOfFirst {
+                    if (currentNode.first.first == "/" || currentNode.first.first == null)
+                        currentNode.first.first == it.second.current
+                    else {
+                        val parentPath = currentNode.first.first!!.split("/").last()
+                        parentPath == it.second.current
+                    }
+                }
+            if (parentIdx != -1) {
+                dirNodeList[i] = currentNode.copy(
+                    currentNode.first,
+                    currentNode.second.copy(parent = dirNodeList[parentIdx].second)
+                )
+                (dirNodeList[parentIdx].second.children as MutableList).add(dirNodeList[i].second)
             }
         }
+        dirNodeList.filter { it.second.parent == null && it.first.first != null }
+            .forEach { logger.w("dir ${it.second.current} cannot find parent ${it.first.first}") }
 
-        dirCache.forEach { dir ->
-            if (dir.current != "/") {
-                findNode(dir.parent!!, root)?.let {
-                    (it.children as MutableList).add(
-                        WebDavDirTreeNode(
-                            dir.current,
-                            it,
-                            mutableListOf()
-                        )
-                    )
-                } ?: run {
-                    logger.e("dirToTree: $dir cannot find parent")
-                    retryList.add(dir)
+        // book then
+        bookMetaDataLs
+            .forEach { book ->
+                val bookNode = WebDavDirTreeNode(book.name, null, false, listOf())
+                val parent = book.fullUrl
+                    .replace(baseUrl, "")
+                    .urlDecode()
+                    .split("/")
+                    .let { it[it.size - 2] }
+                    .ifEmpty { "/" }
+                val parentIdx = dirNodeList
+                    .indexOfFirst { it.second.current == parent }
+                if (parentIdx != -1) {
+                    val node = dirNodeList[parentIdx]
+                    (node.second.children as MutableList).add(bookNode)
+                } else {
+                    logger.w("book ${book.name} cannot find parent $parent")
                 }
             }
-        }
-
-        var oldListCount = 0
-        val toExclude = mutableListOf<WebDavDirNode>()
-        // fixed point checking
-        while (oldListCount != retryList.size && retryList.size > 0) {
-            oldListCount = retryList.size
-            toExclude.clear()
-            retryList.forEach { dir ->
-                findNode(dir.parent!!, root)?.let {
-                    toExclude.add(dir)
-                    (it.children as MutableList).add(
-                        WebDavDirTreeNode(
-                            dir.current,
-                            it,
-                            mutableListOf()
-                        )
-                    )
-                } ?: logger.e("dirToTree: retry $dir cannot find parent")
-            }
-            toExclude.forEach(retryList::remove)
-        }
-
-        return root
+        return dirNodeList.map { it.second }.find { it.current == "/" }!!
     }
 }

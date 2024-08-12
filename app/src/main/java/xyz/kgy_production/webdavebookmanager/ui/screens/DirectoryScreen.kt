@@ -127,22 +127,15 @@ fun DirectoryScreen(
             if (rootConf == null) return@launch
             if (currentPath == model.url) {
                 logger.d("get root tree")
-                logger.d("${dirTree == null}, ${dirTree?.current}")
-                val isDir = rootConf!!.bookMetaDataLs.find {
-                    it.name == currentPath.split("/").last().urlDecode()
-                } == null
                 contentList =
-                    dirTree?.children?.map { it.toContentData(model.url, isDir) } ?: listOf()
+                    dirTree?.children?.map { it.toContentData(model.url) } ?: listOf()
             } else {
                 logger.d("get branch")
                 dirTree?.let { tree ->
                     val pathToSearch = currentPath.replace(model.url, "").ifEmpty { "/" }
                     tree.search(pathToSearch)?.let {
                         logger.d("node found in tree")
-                        val isDir = rootConf!!.bookMetaDataLs.find {
-                            it.name == currentPath.split("/").last().urlDecode()
-                        } == null
-                        contentList = it.children.map { it.toContentData(model.url, isDir) }
+                        contentList = it.children.map { it.toContentData(model.url) }
                     }
                 }
             }
@@ -173,7 +166,7 @@ fun DirectoryScreen(
     LaunchedEffect(oriConf, rootConf, initDone) {
         if (!initDone || rootConf == oriConf) return@LaunchedEffect
         rootConf?.let {
-            dirTree = it.dirToTree()
+            dirTree = it.dirToTree(model.url)
             coroutineScope.launch {
                 writeDataToWebDav(
                     Json.encodeToString(it),
@@ -206,11 +199,8 @@ fun DirectoryScreen(
                                 tree.search(data.fullUrl.replace(model.url, ""))
                                     ?.let {
                                         logger.d("next layer")
-                                        val isDir = rootConf!!.bookMetaDataLs.find {
-                                            it.name == currentPath.split("/").last().urlDecode()
-                                        } == null
                                         pendingCheckList.addAll(it.children.map {
-                                            it.toContentData(model.url, isDir)
+                                            it.toContentData(model.url)
                                         })
                                     }
                             }
@@ -311,13 +301,14 @@ fun DirectoryScreen(
 
     LaunchedEffect(Unit) {
         if (model.url == currentPath) {
+            // TODO cache to local
             coroutineScope.launch {
                 oriConf = firstTimeLaunchCheck(model) {
                     logger.d("first time launch for ${model.url}")
                     showFirstTimeDialog = true
                 }
                 rootConf = oriConf
-                dirTree = rootConf?.dirToTree()
+                dirTree = rootConf?.dirToTree(model.url)
                 initDone = true
             }
         }
