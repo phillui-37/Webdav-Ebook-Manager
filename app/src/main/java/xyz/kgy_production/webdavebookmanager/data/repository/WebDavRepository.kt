@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.data
+package xyz.kgy_production.webdavebookmanager.data.repository
 
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 

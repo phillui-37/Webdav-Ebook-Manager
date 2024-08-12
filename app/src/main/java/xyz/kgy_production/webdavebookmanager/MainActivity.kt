@@ -33,7 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.MainApplication.Companion.dataStore
-import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
 import xyz.kgy_production.webdavebookmanager.ui.theme.WebdavEbookManagerTheme
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ThemeViewModel

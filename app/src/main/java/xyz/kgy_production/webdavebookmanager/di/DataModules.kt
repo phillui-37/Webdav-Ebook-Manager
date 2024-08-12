@@ -8,9 +8,11 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import xyz.kgy_production.webdavebookmanager.data.DefaultWebDavRepository
-import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.localdb.WebDavDatabase
+import xyz.kgy_production.webdavebookmanager.data.repository.DirTreeCacheRepository
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
+import xyz.kgy_production.webdavebookmanager.data.repository.impl.DefaultDirTreeCacheRepository
+import xyz.kgy_production.webdavebookmanager.data.repository.impl.DefaultWebDavRepository
 import javax.inject.Singleton
 
 @Module
@@ -26,8 +28,17 @@ object DataBaseModule {
         ).build()
     }
 
+
     @Provides
     fun provideWebDavDao(db: WebDavDatabase) = db.webDavDao()
+    @Provides
+    fun provideDirTreeDao(db: WebDavDatabase) = db.dirTreeDao()
+    @Provides
+    fun provideBookCacheDao(db: WebDavDatabase) = db.bookCacheDao()
+    @Provides
+    fun provideBookBookmarkDao(db: WebDavDatabase) = db.bookBookmarkDao()
+    @Provides
+    fun provideBookTagsDao(db: WebDavDatabase) = db.bookTagsDao()
 }
 
 @Module
@@ -36,4 +47,8 @@ abstract class RepositoryModule {
     @Singleton
     @Binds
     abstract fun bindWebDavRepository(repository: DefaultWebDavRepository): WebDavRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindDirTreeRepository(repository: DefaultDirTreeCacheRepository): DirTreeCacheRepository
 }

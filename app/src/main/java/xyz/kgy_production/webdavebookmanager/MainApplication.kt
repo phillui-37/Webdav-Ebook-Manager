@@ -8,7 +8,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import javax.inject.Inject
 
 @HiltAndroidApp

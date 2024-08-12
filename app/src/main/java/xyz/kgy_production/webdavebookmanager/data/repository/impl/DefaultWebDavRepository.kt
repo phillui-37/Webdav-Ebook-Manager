@@ -1,4 +1,4 @@
-package xyz.kgy_production.webdavebookmanager.data
+package xyz.kgy_production.webdavebookmanager.data.repository.impl
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -7,6 +7,9 @@ import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.data.localdb.dao.WebDavDAO
 import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
+import xyz.kgy_production.webdavebookmanager.data.toEntity
+import xyz.kgy_production.webdavebookmanager.data.toModel
 import xyz.kgy_production.webdavebookmanager.di.DefaultDispatcher
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.decrypt

@@ -7,8 +7,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
-import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import javax.inject.Inject
 

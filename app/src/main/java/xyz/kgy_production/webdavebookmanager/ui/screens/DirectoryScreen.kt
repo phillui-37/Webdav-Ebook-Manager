@@ -1,6 +1,5 @@
 package xyz.kgy_production.webdavebookmanager.ui.screens
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,7 +18,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -36,25 +34,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
-import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
-import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.ui.component.DirectoryTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
@@ -63,12 +55,8 @@ import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
-import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
-import xyz.kgy_production.webdavebookmanager.util.openWithExtApp
 import xyz.kgy_production.webdavebookmanager.util.pipe
-import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel
@@ -85,178 +73,78 @@ fun DirectoryScreen(
     // TODO search, filter<-need remote data(protobuf)<-tag/series...
     // TODO long press -> rename, add dir, upload file
     // TODO book show tags, read status and progress
-    val model = runBlocking(Dispatchers.IO) {
-        viewModel.getWebDavModel(id)!!
-    }
-    var currentPath by remember { mutableStateOf(destUrl ?: model.url) }
-    var contentList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>>(listOf()) }
+    val logger by Logger.delegate("DirectoryScreen")
     val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
-    var isLoading by remember { mutableStateOf(false) }
-    var showFirstTimeDialog by remember { mutableStateOf(false) }
+    runBlocking(coroutineScope.coroutineContext) { viewModel.setWebDavModel(id) }
     val ctx = LocalContext.current
+
+    // state from viewmodel
+    val currentPath = viewModel.currentPath.collectAsStateWithLifecycle()
+    val contentList = viewModel.contentList.collectAsStateWithLifecycle()
+    val isLoading = viewModel.isLoading.collectAsStateWithLifecycle()
+    val showFirstTimeDialog = viewModel.showFirstTimeDialog.collectAsStateWithLifecycle()
+    val rootConf = viewModel.rootConf.collectAsStateWithLifecycle()
+    val dirTree = viewModel.dirTree.collectAsStateWithLifecycle()
+
+    // local state
     val snackBarHostState = remember { SnackbarHostState() }
-    var initDone by remember { mutableStateOf(false) }
-    var oriConf by remember { mutableStateOf<WebDavCacheData?>(null) }
-    var rootConf by remember { mutableStateOf<WebDavCacheData?>(null) }
-    var currentConf by remember { mutableStateOf<WebDavDirNode?>(null) }
-    var dirTree by remember { mutableStateOf<WebDavCacheData.WebDavDirTreeNode?>(null) }
-    val re = model.bypassPattern.map {
+    var searchList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
+    val filterList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
+    val scrollState = rememberLazyListState()
+
+    // var
+    val re = viewModel.model.bypassPattern.map {
         if (it.isRegex) Regex(it.pattern)
         else Regex(".*${it.pattern}.*")
     }
     val byPassPatternFilter: (String) -> Boolean =
         { path -> re.all { !it.matches(path.urlDecode()) } }
-    val scrollState = rememberLazyListState()
-    val logger by Logger.delegate("DirectoryScreen")
-    val searchText = MutableStateFlow("")
-    var searchList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
-    val filterList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
 
-    BackHandler {
-        if (currentPath == model.url)
-            onBack()
-        else
-            currentPath = currentPath.split("/").run { subList(0, size - 1) }.joinToString("/")
-    }
+    BackHandler { viewModel.goBack(onBack) }
 
     LaunchedEffect(currentPath, dirTree) {
         logger.d("path updated: $currentPath")
-        isLoading = true
-        contentList = listOf()
-        coroutineScope.launch {
-            if (rootConf == null) return@launch
-            if (currentPath == model.url) {
-                logger.d("get root tree")
-                contentList =
-                    dirTree?.children?.map { it.toContentData(model.url) } ?: listOf()
-            } else {
-                logger.d("get branch")
-                dirTree?.let { tree ->
-                    val pathToSearch = currentPath.replace(model.url, "").ifEmpty { "/" }
-                    tree.search(pathToSearch)?.let {
-                        logger.d("node found in tree")
-                        contentList = it.children.map { it.toContentData(model.url) }
-                    }
-                }
-            }
-        }
-        coroutineScope.launch {
-            getWebDavDirContentList(currentPath, model.loginId, model.password) {
-                // TODO need to check network status and conf->current path last updated, not always need to be updated
-//                contentList = it
-                isLoading = false
-                // TODO update conf to latest list if have changes
-//                conf?.let { _conf ->
-//                    conf = _conf
-//                }
-            }
-        }
-        if (currentPath == model.url)
-            currentConf = rootConf?.dirCache?.find { it.current == "/" && it.parent == null }
-        else {
-            val current = currentPath.replace(model.url, "").urlDecode()
-            val parent = current.split("/").let { it[it.size - 2] }.ifEmpty { "/" }
-            currentConf = rootConf!!.dirCache.find {
-                "/${it.current}" == current && it.parent == parent
-            }
-        }
-        logger.d("current conf: $currentConf")
+        viewModel.setIsLoading(true)
+        viewModel.emptyContentList()
+        coroutineScope.launch { viewModel.updateDirTree() }
+        coroutineScope.launch { viewModel.getRemoteContentList(currentPath.value) }
     }
 
-    LaunchedEffect(oriConf, rootConf, initDone) {
-        if (!initDone || rootConf == oriConf) return@LaunchedEffect
-        rootConf?.let {
-            dirTree = it.dirToTree(model.url)
-            coroutineScope.launch {
-                writeDataToWebDav(
-                    Json.encodeToString(it),
-                    BOOK_METADATA_CONFIG_FILENAME,
-                    model.url,
-                    model.loginId,
-                    model.password,
-                    true,
-                )
-            }
-        }
+    LaunchedEffect(rootConf) {
+        viewModel.onRootConfChanged(coroutineScope)
     }
 
     SideEffect {
         CoroutineScope(Dispatchers.IO).launch {
-            searchText.debounce(500L).collectLatest {
-                if (it.isEmpty()) {
-                    searchList = null
-                } else {
-                    val pattern = Regex(".*${it.toLowerCase(Locale.current)}.*")
-                    val pendingCheckList = mutableListOf(*contentList.toTypedArray())
-                    val _searchList = mutableListOf<DirectoryViewModel.ContentData>()
-                    while (pendingCheckList.isNotEmpty()) {
-                        val data = pendingCheckList.removeFirst()
-                        logger.d("search processing, remains: ${pendingCheckList.size}")
-                        logger.d("processing node $data")
-                        if (data.isDir) {
-                            dirTree?.let { tree ->
-                                logger.d("tree search")
-                                tree.search(data.fullUrl.replace(model.url, ""))
-                                    ?.let {
-                                        logger.d("next layer")
-                                        pendingCheckList.addAll(it.children.map {
-                                            it.toContentData(model.url)
-                                        })
-                                    }
-                            }
-                        }
-                        if (pattern.matches(data.name.toLowerCase(Locale.current)))
-                            _searchList.add(data)
-                    }
-                    searchList = _searchList
-                }
+            viewModel.searchText.collectLatest {
+                searchList = viewModel.onSearchUpdateSearchList(it)
             }
         }
     }
 
-    if (showFirstTimeDialog) {
+    if (showFirstTimeDialog.value) {
         FirstTimeSetupDialog(
-            onDismiss = { showFirstTimeDialog = false },
+            onDismiss = viewModel::disableFirstTimeDialog,
             onConfirm = {
-                coroutineScope.launch {
-                    snackBarHostState
-                        .showSnackbar(
-                            message = ctx.getString(R.string.snack_start_scan),
-                            actionLabel = ctx.getString(R.string.btn_dismiss),
-                            duration = SnackbarDuration.Indefinite,
-                        )
-                }
-                ScanWebDavService.startScanService(ctx, model.id)
+                viewModel.execFirstTimeSetup(coroutineScope, snackBarHostState, ctx)
             }
         )
     }
 
     Scaffold(
         topBar = {
-            if (currentPath == model.url)
+            if (viewModel.isAtRoot)
                 CommonTopBar(
                     title = stringResource(id = R.string.screen_dir_title),
                     onBack = onBack,
-                    onSearch = {
-                        coroutineScope.launch {
-                            searchText.emit(it)
-                        }
-                    }
+                    onSearch = viewModel::search
                 )
             else
                 DirectoryTopBar(
-                    title = currentPath.split("/").run { get(size - 1) }.urlDecode(),
+                    title = viewModel.getNonRootTitle(),
                     onBack = onBack,
-                    toParentDir = {
-                        currentPath = currentPath.split("/")
-                            .run { take(size - 1) }
-                            .joinToString("/")
-                    },
-                    onSearch = {
-                        coroutineScope.launch {
-                            searchText.emit(it)
-                        }
-                    },
+                    toParentDir = viewModel::toParentDir,
+                    onSearch = viewModel::search,
                     onFilter = {
                         // TODO
                     }
@@ -266,7 +154,7 @@ fun DirectoryScreen(
             SnackbarHost(hostState = snackBarHostState)
         }
     ) { padding ->
-        if (isLoading)
+        if (isLoading.value)
             LinearProgressIndicator(
                 modifier = Modifier
                     .padding(padding)
@@ -282,79 +170,40 @@ fun DirectoryScreen(
         ) {
             ContentList(
                 contentList = if (searchList == null && filterList == null)
-                    contentList
+                    contentList.value
                 else if (searchList != null)
                     searchList!!
                 else
                     filterList!!,
-                logger = logger,
                 byPassPatternFilter = byPassPatternFilter,
-                currentPath = currentPath,
-                setCurrentPath = { currentPath = it },
-                model = model,
-                toReaderScreen = toReaderScreen,
-                ctx = ctx
+                currentPath = currentPath.value,
+                onDirClick = viewModel::onDirClick,
+                onFileClick = { path, fullUrl, mimeType ->
+                    viewModel.onFileClick(path, ctx, fullUrl, mimeType, toReaderScreen)
+                }
             )
 
         }
     }
 
     LaunchedEffect(Unit) {
-        if (model.url == currentPath) {
-            // TODO cache to local
-            coroutineScope.launch {
-                oriConf = firstTimeLaunchCheck(model) {
-                    logger.d("first time launch for ${model.url}")
-                    showFirstTimeDialog = true
-                }
-                rootConf = oriConf
-                dirTree = rootConf?.dirToTree(model.url)
-                initDone = true
-            }
-        }
+        viewModel.init(destUrl, coroutineScope, ctx)
     }
 }
 
 private fun LazyListScope.ContentList(
     contentList: List<DirectoryViewModel.ContentData>,
-    logger: Logger,
     byPassPatternFilter: (String) -> Boolean,
     currentPath: String,
-    setCurrentPath: (String) -> Unit,
-    model: WebDavModel,
-    toReaderScreen: (String, String) -> Unit,
-    ctx: Context,
+    onDirClick: (String) -> Unit,
+    onFileClick: (String, String, String) -> Unit,
 ) {
     items(contentList.filter { it.isDir && byPassPatternFilter(it.fullUrl) && it.fullUrl.urlDecode() != currentPath }) { content ->
-        ContentRow(content = content) {
-            logger.d("Dir onclick: $it")
-            setCurrentPath(it)
-        }
+        ContentRow(content = content, onClick = onDirClick)
     }
     items(contentList.filter { !it.isDir && byPassPatternFilter(it.fullUrl) && it.name != BOOK_METADATA_CONFIG_FILENAME }) { content ->
         ContentRow(content = content) {
-            logger.d("File onclick: $it")
-            if (model.defaultOpenByThis) {
-                toReaderScreen(it, currentPath)
-            } else {
-                val paths = it.split("/")
-                val file = ctx.saveShareFile(
-                    paths.last().urlDecode(),
-                    "/${model.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
-                        .replace(model.url, "").urlDecode()
-                ) {
-                    var data: ByteArray = byteArrayOf()
-                    runBlocking(Dispatchers.IO) {
-                        getFileFromWebDav(content.fullUrl, model.loginId, model.password) {
-                            data = it ?: byteArrayOf()
-                        }
-                    }
-                    data
-                }
-                ctx.openWithExtApp(
-                    file,
-                    content.contentType!!.run { "$type/$subtype" })
-            }
+            onFileClick(it, content.fullUrl, content.contentType!!.run { "$type/$subtype" })
         }
     }
 }

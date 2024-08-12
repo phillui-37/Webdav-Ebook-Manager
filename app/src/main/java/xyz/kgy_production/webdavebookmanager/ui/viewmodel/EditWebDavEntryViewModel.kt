@@ -5,8 +5,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import xyz.kgy_production.webdavebookmanager.common.Result
-import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import javax.inject.Inject
 

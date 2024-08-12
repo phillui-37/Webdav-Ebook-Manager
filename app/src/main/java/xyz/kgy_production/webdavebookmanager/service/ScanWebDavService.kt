@@ -32,11 +32,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.MainActivity
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.data.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
