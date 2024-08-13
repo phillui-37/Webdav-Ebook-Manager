@@ -3,8 +3,10 @@ package xyz.kgy_production.webdavebookmanager.ui.component
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -140,6 +142,37 @@ fun DirectoryTopBar(
             FilterView(onFilter = onFilter) // TODO
             IconButton(onClick = toParentDir) {
                 Icon(Icons.Filled.ArrowUpward, stringResource(id = R.string.label_to_parent_dir))
+            }
+        }
+    )
+}
+
+/** Reader */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReaderTopBar(
+    onRefresh: () -> Unit,
+    onBack: () -> Unit,
+    toShowTagDialog: () -> Unit,
+    toShowBookmarkDialog: () -> Unit,
+) {
+    // todo tag, bookmark
+    TopAppBar(
+        title = { Text("") },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBackIosNew, stringResource(id = R.string.btn_back_desc))
+            }
+        },
+        actions = {
+            IconButton(onClick = toShowBookmarkDialog) {
+                Icon(Icons.Filled.Book, "Bookmark") // TODO i18n
+            }
+            IconButton(onClick = toShowTagDialog) {
+                Icon(Icons.Filled.Tag, "Tag") // TODO i18n
+            }
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Filled.Refresh, "Refresh") // TODO i18n
             }
         }
     )

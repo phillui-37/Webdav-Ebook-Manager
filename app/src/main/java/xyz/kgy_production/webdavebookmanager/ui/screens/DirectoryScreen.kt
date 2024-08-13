@@ -104,7 +104,7 @@ fun DirectoryScreen(
     // local state
     val snackBarHostState = remember { SnackbarHostState() }
     var searchList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
-    val filterList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
+    var filterList by remember { mutableStateOf<List<DirectoryViewModel.ContentData>?>(null) }
     val scrollState = rememberLazyListState()
 
     // var
@@ -131,7 +131,7 @@ fun DirectoryScreen(
 
     SideEffect {
         CoroutineScope(Dispatchers.IO).launch {
-            viewModel.searchText.debounce(500).collectLatest {
+            viewModel.searchText.debounce(1000).collectLatest {
                 searchList = viewModel.onSearchUpdateSearchList(it)
             }
         }
@@ -192,9 +192,13 @@ fun DirectoryScreen(
                     filterList!!,
                 byPassPatternFilter = byPassPatternFilter,
                 currentPath = currentPath.value,
-                onDirClick = viewModel::onDirClick,
+                onDirClick = {
+                    viewModel.onDirClick(it)
+                    viewModel.search("")
+                },
                 onFileClick = { path, fullUrl, mimeType ->
                     viewModel.onFileClick(path, ctx, fullUrl, mimeType, toReaderScreen)
+                    viewModel.search("")
                 }
             )
 

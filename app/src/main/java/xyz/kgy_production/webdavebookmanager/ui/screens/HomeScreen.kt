@@ -65,6 +65,8 @@ import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.HomeViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
+import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
+import xyz.kgy_production.webdavebookmanager.util.isWebDavCacheExists
 import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.removeAllShareFiles
@@ -218,8 +220,10 @@ fun HomeScreen(
                         refreshCb = { refreshCbMap += it },
                         toDisplaySnackBar = ::toDisplaySnackBar,
                         toDirectory = {
-                            // TODO check network, if no network need to have dir tree local cache
-                            toDirectoryScreen(model.id)
+                            if (ctx.isNetworkAvailable() || ctx.isWebDavCacheExists(model.uuid))
+                                toDirectoryScreen(model.id)
+                            else
+                                toDisplaySnackBar("No network and no local cache, please try again when network available") // TODO i18n
                         },
                     )
                 }

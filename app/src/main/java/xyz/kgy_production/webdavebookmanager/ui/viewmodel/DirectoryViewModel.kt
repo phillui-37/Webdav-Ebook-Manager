@@ -39,6 +39,7 @@ import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.saveWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.toDateTime
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
+import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -178,25 +179,33 @@ class DirectoryViewModel @Inject constructor(
         if (text.isEmpty()) return null
         val pattern = Regex(".*${text.toLowerCase(Locale.current)}.*")
         val pendingCheckList = mutableListOf(*contentList.value.toTypedArray())
-        val _searchList = mutableListOf<DirectoryViewModel.ContentData>()
+        val doneList = mutableListOf<String>()
+        val _searchList = mutableListOf<ContentData>()
         while (pendingCheckList.isNotEmpty()) {
             val data = pendingCheckList.removeFirst()
-            logger.d("search processing, remains: ${pendingCheckList.size}")
-            logger.d("processing node $data")
+            if (doneList.contains(data.fullUrl)) continue
+//            logger.d("search processing, remains: ${pendingCheckList.size}")
+//            logger.d("processing node $data")
             if (data.isDir) {
                 dirTree.value?.let { tree ->
-                    logger.d("tree search")
-                    tree.search(data.fullUrl.replace(model.url, ""))
+//                    logger.d("tree search")
+                    tree.search(data.fullUrl.replace(model.url, "").urlDecode())
                         ?.let {
-                            logger.d("next layer")
+//                            logger.d("next layer")
+                            val parentPath =
+                                "${model.url}${it.getWholeParentPath()}${it.current.urlEncode()}/"
+//                            logger.d("parent path: $parentPath")
                             pendingCheckList.addAll(it.children.map {
-                                it.toContentData(model.url)
+                                it.toContentData(parentPath)
                             })
                         }
                 }
             }
-            if (pattern.matches(data.name.toLowerCase(Locale.current)))
+            if (pattern.matches(data.name.toLowerCase(Locale.current))) {
+                logger.d("[onSearchUpdateSearchList] match record found, data: ${data.name}, ${data.fullUrl}")
                 _searchList.add(data)
+            }
+            doneList.add(data.fullUrl)
         }
         return _searchList
     }

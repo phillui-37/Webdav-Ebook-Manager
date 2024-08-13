@@ -7,6 +7,7 @@ import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.fallbackMimeTypeMapping
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
+import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import java.time.LocalDateTime
 
 @Serializable
@@ -26,7 +27,7 @@ data class WebDavCacheData(
 
         // will not remove the webdav domain
         fun search(path: String): WebDavDirTreeNode? {
-            logger.d("to search $path")
+//            logger.d("to search $path")
             var nextDir: WebDavDirTreeNode? = null
             var pathLs = path
                 .let { if (it.startsWith("/")) it.substring(1, it.length) else it }
@@ -47,7 +48,7 @@ data class WebDavCacheData(
             return nextDir
         }
 
-        private fun getWholeParentPath(): String {
+        fun getWholeParentPath(): String {
             val ret = mutableListOf<String>()
             var _parent = parent
             while (_parent != null) {
@@ -70,7 +71,7 @@ data class WebDavCacheData(
                 }
             }
             DirectoryViewModel.ContentData(
-                "$baseUrl${getWholeParentPath()}$current",
+                "$baseUrl${getWholeParentPath()}${current.urlEncode()}",
                 current,
                 LocalDateTime.now(),
                 LocalDateTime.now(),

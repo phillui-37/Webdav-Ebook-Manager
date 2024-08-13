@@ -1,5 +1,6 @@
 package xyz.kgy_production.webdavebookmanager.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.util.Logger
+import xyz.kgy_production.webdavebookmanager.util.removeWebDavCache
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,12 +34,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    suspend fun removeEntry(id: Int) {
+    suspend fun removeEntry(id: Int, ctx: Context) {
         if (id < 0) {
             logger.w("[removeEntry] ID < 0, in dev mode?")
             return
         }
         try {
+            val uuid = webDavRepository.getEntryById(id)!!.uuid
+            ctx.removeWebDavCache(uuid)
             webDavRepository.deleteEntry(id)
             webdavDomainList = webdavDomainList.filter { it.id != id }
             _filteredWebDavDomainListFlow.value = listOf()

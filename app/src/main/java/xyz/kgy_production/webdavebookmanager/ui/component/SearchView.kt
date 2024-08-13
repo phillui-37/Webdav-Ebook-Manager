@@ -14,12 +14,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,7 @@ fun SearchView(
     val logger by Logger.delegate("SearchView")
     val isDarkTheme = LocalIsDarkTheme.current
     var searchContent by remember { mutableStateOf(initialSearchContent) }
+    val focusRequester = remember { FocusRequester() }
 
     fun onSearchTextChanged(newValue: String) {
         searchContent = newValue
@@ -55,6 +59,7 @@ fun SearchView(
             .fillMaxWidth()
             .padding(horizontal = 5.dp)
             .background(if (isDarkTheme) Color.Black else Color.White)
+            .focusRequester(focusRequester)
     ) {
         Icon(Icons.Filled.Search, "Search", Modifier.align(Alignment.CenterVertically)) // TODO i18n
         TextField(
@@ -75,6 +80,10 @@ fun SearchView(
         }) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Close search dialog") // TODO i18n
         }
+    }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
     }
 }
 

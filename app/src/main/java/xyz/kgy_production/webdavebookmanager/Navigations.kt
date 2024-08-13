@@ -104,7 +104,7 @@ class NaviActions(private val navHostController: NavHostController) {
         navHostController.navigate(
             "${Screens.READER}?${RouteArgs.Reader.BOOK_URL}=${
                 bookUrl.urlEncode()
-            }&${RouteArgs.Reader.WEBDAV_ID}=${webDavId}&${RouteArgs.Reader.FROM_DIR_URL}=${fromDirUrl}"
+            }&${RouteArgs.Reader.WEBDAV_ID}=${webDavId}&${RouteArgs.Reader.FROM_DIR_URL}=${fromDirUrl.urlEncode()}"
         )
     }
 }

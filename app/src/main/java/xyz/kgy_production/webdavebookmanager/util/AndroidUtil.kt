@@ -14,7 +14,7 @@ import java.io.File
 
 fun Context.getShareDir() = "$filesDir/share"
 fun Context.getExtAssetsDir() = "$filesDir/extAssets"
-fun Context.getDirTreeCacheDir() = "$filesDir/dirTreeCache"
+fun Context.getWebDavCacheDir() = "$filesDir/dirTreeCache"
 
 fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
     File(path).mkdirs()
@@ -26,16 +26,19 @@ fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
 }
 
 fun Context.saveWebDavCache(cache: WebDavCacheData, webDavUuid: String) {
-    saveFile("$webDavUuid.json", getDirTreeCacheDir()) {
+    saveFile("$webDavUuid.json", getWebDavCacheDir()) {
         Json.encodeToString(cache).encodeToByteArray()
     }
 }
 
 fun Context.getWebDavCache(webDavUuid: String): WebDavCacheData? {
-    val file = File(getDirTreeCacheDir(), "$webDavUuid.json")
+    val file = File(getWebDavCacheDir(), "$webDavUuid.json")
     if (!file.exists()) return null
     return Json.decodeFromString(file.readText())
 }
+
+fun Context.isWebDavCacheExists(webDavUuid: String) =
+    File(getWebDavCacheDir(), "$webDavUuid.json").exists()
 
 fun Context.saveShareFile(data: ByteArray, fileName: String, path: String? = null) =
     saveShareFile(fileName, path) { data }
@@ -48,7 +51,7 @@ fun Context.saveShareFile(fileName: String, path: String? = null, getData: () ->
         else
             it
     }
-    logger.d("dir to save: $dir")
+    logger.d("dir to save: $dir, file: $fileName")
     return saveFile(fileName, dir, getData)
 }
 
@@ -64,6 +67,10 @@ fun Context.getExtAssetsFile(fileName: String): File {
 
 fun Context.removeAllShareFiles() {
     File(getShareDir()).listFiles()?.forEach { it.deleteRecursively() }
+}
+
+fun Context.removeWebDavCache(webDavUuid: String) {
+    File(getWebDavCacheDir(), "$webDavUuid.json").delete()
 }
 
 fun Context.isSystemDarkMode() =

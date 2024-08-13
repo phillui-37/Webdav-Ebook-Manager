@@ -4,17 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import at.bitfire.dav4jvm.exception.HttpException
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +34,7 @@ import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavDirNode
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.component.GenericEbookView
+import xyz.kgy_production.webdavebookmanager.ui.component.ReaderTopBar
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ReaderViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
@@ -54,6 +49,8 @@ fun getCache(
     bookUrl: String,
     model: WebDavModel
 ): Pair<WebDavCacheData, Pair<WebDavDirNode, BookMetaData>>? {
+    val logger by Logger.delegate("ReaderScr.getCache")
+    logger.d("url: $bookUrl")
     return runBlocking(Dispatchers.IO) {
         val url = "${model.url}/$BOOK_METADATA_CONFIG_FILENAME"
         getFileFromWebDav(
@@ -87,7 +84,6 @@ fun updateCache(cacheData: WebDavCacheData, newBookMetaData: BookMetaData): WebD
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     webDavId: Int,
@@ -113,8 +109,10 @@ fun ReaderScreen(
     val ctx = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var cacheLastUpdateTime by
-        remember { mutableLongStateOf(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)) }
+    remember { mutableLongStateOf(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)) }
     var updatingToken by remember { mutableStateOf(AtomicInteger()) }
+    var isShowBookmarkDialog by remember { mutableStateOf(false) }
+    var isShowTagDialog by remember { mutableStateOf(false) }
 
     DisposableEffect(bookMetaData) {
         onDispose {
@@ -151,22 +149,31 @@ fun ReaderScreen(
         onBack()
     }
 
+    if (isShowBookmarkDialog) {
+        BookmarkDialog() {
+            isShowBookmarkDialog = false
+        }
+    }
+
+    if (isShowTagDialog) {
+        TagDialog() {
+            isShowTagDialog = false
+        }
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("") },
-                actions = {
-                    IconButton(onClick = {
-                        url = ""
-                        CoroutineScope(Dispatchers.IO).launch {
-                            delay(1000)
-                            url = bookUrl
-                        }
-                    }) {
-                        Icon(Icons.Filled.Refresh, "Refresh") // TODO i18n
+            ReaderTopBar(
+                onRefresh = {
+                    url = ""
+                    CoroutineScope(Dispatchers.IO).launch {
+                        delay(1000)
+                        url = bookUrl
                     }
-                    // TODO bookmark, tag edit
-                }
+                },
+                onBack = onBack,
+                toShowBookmarkDialog = { isShowBookmarkDialog = true },
+                toShowTagDialog = { isShowTagDialog = true }
             )
         },
         snackbarHost = {
@@ -199,5 +206,25 @@ fun ReaderScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BookmarkDialog(
+    toCloseDialog: () -> Unit
+) {
+    //todo
+    Dialog(onDismissRequest = { toCloseDialog }) {
+
+    }
+}
+
+@Composable
+private fun TagDialog(
+    toCloseDialog: () -> Unit
+) {
+    //todo
+    Dialog(onDismissRequest = { toCloseDialog() }) {
+
     }
 }

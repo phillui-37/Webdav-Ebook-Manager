@@ -53,5 +53,5 @@ fun String.formatDateTime(formatter: DateTimeFormatter): LocalDateTime {
 fun Long.toDateTime() =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(this), java.util.TimeZone.getDefault().toZoneId())
 
-fun String.urlEncode() = URLEncoder.encode(this, "utf-8")
+fun String.urlEncode() = URLEncoder.encode(this, "utf-8").replace("+", "%20")
 fun String.urlDecode() = URLDecoder.decode(this, "utf-8")

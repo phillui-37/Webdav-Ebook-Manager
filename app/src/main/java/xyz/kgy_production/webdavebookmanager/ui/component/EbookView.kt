@@ -38,7 +38,6 @@ import xyz.kgy_production.webdavebookmanager.util.WEBVIEW_COMMON_DELAY
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.getWebView
 import xyz.kgy_production.webdavebookmanager.util.saveShareFile
-import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import kotlin.math.roundToInt
 
 /// TODO i18n, read to end page
@@ -80,13 +79,14 @@ fun GenericEbookView(
     LaunchedEffect(null) {
         CoroutineScope(Dispatchers.IO).launch {
             if (fileUrl != null) {
+                logger.d("save $fileUrl to file")
                 val model = vm.getWebDavModel(webDavId)
                 model?.let {
                     val paths = fileUrl.split("/")
                     val file = ctx.saveShareFile(
-                        paths.last().urlDecode(),
+                        paths.last(),
                         "/${it.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
-                            .replace(model.url, "").urlDecode()
+                            .replace(model.url, "")
                     ) { getFileFromWebDav(fileUrl, it.loginId, it.password) ?: byteArrayOf() }
                     _fileUri.value = Uri.fromFile(file)
                 }
