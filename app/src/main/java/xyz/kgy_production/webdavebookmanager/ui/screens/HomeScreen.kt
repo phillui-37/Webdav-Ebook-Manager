@@ -126,7 +126,7 @@ fun HomeScreen(
             onCancel = { },
             onDelete = {
                 coroutineScope.launch {
-                    viewModel.removeEntry(entry.id)
+                    viewModel.removeEntry(entry.id, ctx)
                     refreshCbMap = refreshCbMap.filter {
                         logger.d("delete webdav entry: checking id ${it.key}")
                         it.key != entry.id
