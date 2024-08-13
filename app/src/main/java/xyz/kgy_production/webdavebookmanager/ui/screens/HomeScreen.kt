@@ -57,18 +57,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.kgy_production.webdavebookmanager.LocalIsNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.ui.component.HomeTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
+import xyz.kgy_production.webdavebookmanager.ui.component.HomeTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
+import xyz.kgy_production.webdavebookmanager.ui.viewmodel.HomeViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.matchParentHeight
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.removeAllShareFiles
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import xyz.kgy_production.webdavebookmanager.ui.viewmodel.HomeViewModel
 
 private data class DeleteEntryData(
     val id: Int,
@@ -217,7 +217,10 @@ fun HomeScreen(
                         },
                         refreshCb = { refreshCbMap += it },
                         toDisplaySnackBar = ::toDisplaySnackBar,
-                        toDirectory = { toDirectoryScreen(model.id) },
+                        toDirectory = {
+                            // TODO check network, if no network need to have dir tree local cache
+                            toDirectoryScreen(model.id)
+                        },
                     )
                 }
             }

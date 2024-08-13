@@ -40,7 +40,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -57,6 +59,7 @@ import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
+import java.util.concurrent.Executors
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel
@@ -70,14 +73,11 @@ fun DirectoryScreen(
     destUrl: String? = null,
     viewModel: DirectoryViewModel = hiltViewModel(),
 ) {
+    val logger by Logger.delegate("DirectoryScreen")
+
     // TODO search, filter<-need remote data(protobuf)<-tag/series...
     // TODO long press -> rename, add dir, upload file
     // TODO book show tags, read status and progress
-    val logger by Logger.delegate("DirectoryScreen")
-    val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
-    runBlocking(coroutineScope.coroutineContext) { viewModel.setWebDavModel(id) }
-    val ctx = LocalContext.current
-
     // state from viewmodel
     val currentPath = viewModel.currentPath.collectAsStateWithLifecycle()
     val contentList = viewModel.contentList.collectAsStateWithLifecycle()
@@ -85,6 +85,21 @@ fun DirectoryScreen(
     val showFirstTimeDialog = viewModel.showFirstTimeDialog.collectAsStateWithLifecycle()
     val rootConf = viewModel.rootConf.collectAsStateWithLifecycle()
     val dirTree = viewModel.dirTree.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher()).launch {
+            launch { viewModel.currentPath.collect { logger.d("currentPath: $it") } }
+            launch { viewModel.contentList.collect { logger.d("contentList" + it.joinToString(",")) } }
+            launch { viewModel.isLoading.collect { logger.d("isLoading: $it") } }
+            launch { viewModel.showFirstTimeDialog.collect { logger.d("showFirstTimeDialog: $it") } }
+            launch { viewModel.rootConf.collect { logger.d("rootConf: $it") } }
+            launch { viewModel.dirTree.collect { logger.d("dirTree: ${it?.current}") } }
+        }
+    }
+
+    val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
+    runBlocking(coroutineScope.coroutineContext) { viewModel.setWebDavModel(id) }
+    val ctx = LocalContext.current
 
     // local state
     val snackBarHostState = remember { SnackbarHostState() }
@@ -102,21 +117,21 @@ fun DirectoryScreen(
 
     BackHandler { viewModel.goBack(onBack) }
 
-    LaunchedEffect(currentPath, dirTree) {
-        logger.d("path updated: $currentPath")
+    LaunchedEffect(currentPath.value, dirTree.value) {
+        logger.d("path updated: ${currentPath.value}")
         viewModel.setIsLoading(true)
         viewModel.emptyContentList()
         coroutineScope.launch { viewModel.updateDirTree() }
         coroutineScope.launch { viewModel.getRemoteContentList(currentPath.value) }
     }
 
-    LaunchedEffect(rootConf) {
+    LaunchedEffect(rootConf.value) {
         viewModel.onRootConfChanged(coroutineScope)
     }
 
     SideEffect {
         CoroutineScope(Dispatchers.IO).launch {
-            viewModel.searchText.collectLatest {
+            viewModel.searchText.debounce(500).collectLatest {
                 searchList = viewModel.onSearchUpdateSearchList(it)
             }
         }

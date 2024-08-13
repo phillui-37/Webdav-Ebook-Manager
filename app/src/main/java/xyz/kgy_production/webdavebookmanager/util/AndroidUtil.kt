@@ -6,11 +6,15 @@ import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.core.content.FileProvider
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.BuildConfig
+import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import java.io.File
 
 fun Context.getShareDir() = "$filesDir/share"
 fun Context.getExtAssetsDir() = "$filesDir/extAssets"
+fun Context.getDirTreeCacheDir() = "$filesDir/dirTreeCache"
 
 fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
     File(path).mkdirs()
@@ -19,6 +23,18 @@ fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
         file.outputStream().write(getData())
     }
     return file
+}
+
+fun Context.saveWebDavCache(cache: WebDavCacheData, webDavUuid: String) {
+    saveFile("$webDavUuid.json", getDirTreeCacheDir()) {
+        Json.encodeToString(cache).encodeToByteArray()
+    }
+}
+
+fun Context.getWebDavCache(webDavUuid: String): WebDavCacheData? {
+    val file = File(getDirTreeCacheDir(), "$webDavUuid.json")
+    if (!file.exists()) return null
+    return Json.decodeFromString(file.readText())
 }
 
 fun Context.saveShareFile(data: ByteArray, fileName: String, path: String? = null) =

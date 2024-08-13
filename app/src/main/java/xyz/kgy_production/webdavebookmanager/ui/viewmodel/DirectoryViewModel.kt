@@ -15,31 +15,28 @@ import at.bitfire.dav4jvm.property.GetLastModified
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.data.model.DirTreeCacheModel
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
-import xyz.kgy_production.webdavebookmanager.data.repository.DirTreeCacheRepository
 import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.service.ScanWebDavService
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.formatDateTime
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
+import xyz.kgy_production.webdavebookmanager.util.getWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.openWithExtApp
 import xyz.kgy_production.webdavebookmanager.util.saveShareFile
+import xyz.kgy_production.webdavebookmanager.util.saveWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.toDateTime
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
@@ -48,11 +45,9 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 
-@OptIn(FlowPreview::class)
 @HiltViewModel
 class DirectoryViewModel @Inject constructor(
     private val webDavRepository: WebDavRepository,
-    private val dirTreeCacheRepository: DirTreeCacheRepository,
 ) : ViewModel() {
     private val logger by Logger.delegate(this::class.java)
 
@@ -125,8 +120,8 @@ class DirectoryViewModel @Inject constructor(
     val isAtRoot: Boolean
         get() = _currentPath.value == model.url
     private val _searchText = MutableStateFlow("")
-    val searchText: Flow<String>
-        get() = _searchText.debounce(500)
+    val searchText: StateFlow<String>
+        get() = _searchText
     private val _contentList = MutableStateFlow<List<ContentData>>(listOf())
     val contentList: StateFlow<List<ContentData>>
         get() = _contentList
@@ -157,10 +152,15 @@ class DirectoryViewModel @Inject constructor(
     }
 
     fun onRootConfChanged(coroutineScope: CoroutineScope) {
-        if (isConfChanged()) return
+        logger.d("[onRootConfChanged] start")
+        if (isConfNotChanged()) {
+            logger.d("[onRootConfChanged] conf not changed")
+            return
+        }
+
         _rootConf.value?.let {
-            _dirTree.value = it.dirToTree(model.url)
             coroutineScope.launch {
+                _dirTree.emit(it.dirToTree(model.url))
                 writeDataToWebDav(
                     Json.encodeToString(it),
                     BOOK_METADATA_CONFIG_FILENAME,
@@ -208,29 +208,33 @@ class DirectoryViewModel @Inject constructor(
     // biz logic op
     fun init(destUrl: String?, coroutineScope: CoroutineScope, ctx: Context) {
         logger.d("[init] ${model.url}, ${_currentPath.value}")
-        if (model.url != _currentPath.value) return
+//        if (model.url == _currentPath.value) return
 
         if (ctx.isNetworkAvailable()) {
+            logger.d("[init] has network")
             oriConf = firstTimeLaunchCheck(model, coroutineScope.coroutineContext) {
-                logger.d("first time launch for ${model.url}")
+                logger.d("[init] first time launch for ${model.url}")
                 _showFirstTimeDialog.value = true
             }
             runBlocking(coroutineScope.coroutineContext) {
-                if (getLocalDirTreeCache() == null) {
-                    createLocalDirTreeCache(oriConf!!)
+                if (getLocalDirTreeCache(ctx) == null) {
+                    logger.d("[init] save dir tree cache to local")
+                    upsertLocalDirTreeCache(ctx, oriConf!!)
                 }
             }
         } else {
+            logger.d("[init] no network")
             oriConf = runBlocking(coroutineScope.coroutineContext) {
-                getLocalDirTreeCache()!!.webDavCacheData
+                getLocalDirTreeCache(ctx)!!
             }
         }
-        _rootConf.value = oriConf
-        _dirTree.value = oriConf?.dirToTree(model.url)
-
-        _currentPath.value = destUrl ?: model.url
-
-        initDone = true
+        coroutineScope.launch {
+            _rootConf.emit(oriConf)
+            _dirTree.emit(oriConf?.dirToTree(model.url))
+            _currentPath.emit(destUrl ?: model.url)
+            _isLoading.emit(false)
+            initDone = true
+        }
     }
 
     fun getNonRootTitle(): String = _currentPath.value.split("/").run { get(size - 1) }.urlDecode()
@@ -245,11 +249,14 @@ class DirectoryViewModel @Inject constructor(
         )
     }
 
-    fun isConfChanged() = !initDone || _rootConf.value == oriConf
+    fun isConfNotChanged() = !initDone || _rootConf.value == oriConf
 
     suspend fun updateDirTree() {
-        if (rootConf.value == null) return
         logger.d("[updateDirTree]")
+        if (rootConf.value == null) {
+            logger.d("[updateDirTree] null root conf")
+            return
+        }
         if (isAtRoot) {
             logger.d("get root tree")
             _contentList.emit(
@@ -369,22 +376,11 @@ class DirectoryViewModel @Inject constructor(
         return conf
     }
 
-    private suspend fun getLocalDirTreeCache() = dirTreeCacheRepository.getById(model.id)
+    private fun getLocalDirTreeCache(ctx: Context): WebDavCacheData? {
+        return ctx.getWebDavCache(model.uuid)
+    }
 
-    private suspend fun createLocalDirTreeCache(cacheData: WebDavCacheData) =
-        dirTreeCacheRepository.create(
-            DirTreeCacheModel(
-                id = 0,
-                webDavId = model.id,
-                webDavCacheData = cacheData,
-                lastUpdated = LocalDateTime.now()
-            )
-        )
-
-    private suspend fun updateLocalDirTreeCache(cacheData: WebDavCacheData) {
-        dirTreeCacheRepository.updateContent(
-            model.id,
-            cacheData
-        )
+    private fun upsertLocalDirTreeCache(ctx: Context, cacheData: WebDavCacheData) {
+        ctx.saveWebDavCache(cacheData, model.uuid)
     }
 }
