@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +107,12 @@ fun HomeScreen(
     val ctx = LocalContext.current
     val snackBarHostState = remember { SnackbarHostState() }
 
+    SideEffect {
+        coroutineScope.launch {
+            viewModel.fetchWebDavDomainList()
+        }
+    }
+
     LaunchedEffect(needRefresh) {
         if (needRefresh) {
             isLoading = true
@@ -165,7 +172,7 @@ fun HomeScreen(
         topBar = {
             TopBar(
                 openDrawer = openDrawer,
-                onFilterSites = { viewModel.filterWebdavList(it) },
+                onFilterSites = { coroutineScope.launch { viewModel.filterWebdavList(it) } },
                 onRefresh = { needRefresh = true }
             )
         },

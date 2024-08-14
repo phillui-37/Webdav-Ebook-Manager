@@ -3,11 +3,9 @@ package xyz.kgy_production.webdavebookmanager.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.runBlocking
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
 import xyz.kgy_production.webdavebookmanager.util.Logger
@@ -25,13 +23,9 @@ class HomeViewModel @Inject constructor(
     val filteredWebdavDomainListFlow: StateFlow<List<WebDavModel>>
         get() = _filteredWebDavDomainListFlow
 
-
-
-    init {
-        runBlocking(Dispatchers.IO) {
-            webdavDomainList = webDavRepository.getAllEntries()
-            _filteredWebDavDomainListFlow.value = webdavDomainList
-        }
+    suspend fun fetchWebDavDomainList() {
+        webdavDomainList = webDavRepository.getAllEntries()
+        _filteredWebDavDomainListFlow.emit(webdavDomainList)
     }
 
     suspend fun removeEntry(id: Int, ctx: Context) {
@@ -44,20 +38,20 @@ class HomeViewModel @Inject constructor(
             ctx.removeWebDavCache(uuid)
             webDavRepository.deleteEntry(id)
             webdavDomainList = webdavDomainList.filter { it.id != id }
-            _filteredWebDavDomainListFlow.value = listOf()
+            _filteredWebDavDomainListFlow.emit(listOf())
             delay(300) // workaround to ensure the network availability icon display correctly
-            _filteredWebDavDomainListFlow.value = webdavDomainList
+            _filteredWebDavDomainListFlow.emit(webdavDomainList)
         } catch (e: Exception) {
             logger.e(e.message ?: "Error occurred")
             e.printStackTrace()
         }
     }
 
-    /** todo data from webdav model */
-    fun filterWebdavList(filterText: String) {
-        _filteredWebDavDomainListFlow.value =
+    suspend fun filterWebdavList(filterText: String) {
+        _filteredWebDavDomainListFlow.emit(
             webdavDomainList.filter {
                 it.name.contains(filterText) || it.url.contains(filterText)
             }
+        )
     }
 }
