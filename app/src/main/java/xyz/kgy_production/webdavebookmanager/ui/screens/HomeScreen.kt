@@ -199,6 +199,7 @@ fun HomeScreen(
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(domainList.value) { model ->
+                    logger.d(model.toString())
                     WebDavCard(
                         model = model,
                         toShowMenuDialog = {

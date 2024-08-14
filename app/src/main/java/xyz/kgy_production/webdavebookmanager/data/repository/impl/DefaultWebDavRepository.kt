@@ -94,7 +94,7 @@ class DefaultWebDavRepository @Inject constructor(
 
     override suspend fun createEntry(model: WebDavModel) {
         withContext(dispatcher) {
-            dbDAO.insert(model.toEntity())
+            dbDAO.insert(model.toEntity().copy(uuid = UUID.randomUUID().toString()))
         }
     }
 

@@ -69,7 +69,7 @@ fun EditWebDavEntryScreen(
     val model by viewModel.data.collectAsStateWithLifecycle()
     var errorMessage by remember { mutableStateOf("") }
 
-    uuid?.let { it ->
+    uuid?.let {
         LaunchedEffect(key1 = it) {
             coroutineScope.launch {
                 viewModel.setModelByUuid(it).getError()?.let(logger::e)

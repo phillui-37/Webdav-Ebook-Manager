@@ -49,9 +49,11 @@ fun NaviGraph(
             AppModalDrawer(drawerState, currentRoute, naviActions) {
                 HomeScreen(
                     toEditWebDavScreen = {
+                        logger.d("home->editWebDav: $it")
                         naviActions.navigateToAddWebdavEntry(it)
                     },
                     toDirectoryScreen = {
+                        logger.d("home->dir: $it")
                         naviActions.navigateToDirectory(it)
                     },
                     openDrawer = {
