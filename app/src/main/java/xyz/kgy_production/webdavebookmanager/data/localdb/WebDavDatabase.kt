@@ -19,7 +19,7 @@ import xyz.kgy_production.webdavebookmanager.data.localdb.entity.WebDavEntity
         BookTagsEntity::class,
     ],
     version = 1,
-    exportSchema = true,
+    exportSchema = true
 )
 abstract class WebDavDatabase : RoomDatabase() {
     abstract fun webDavDao(): WebDavDAO

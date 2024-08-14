@@ -16,7 +16,7 @@ import androidx.room.PrimaryKey
 )
 data class BookBookmarkEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    @ColumnInfo(name = "book_id") val bookId: Int,
+    @ColumnInfo(name = "book_id", index = true) val bookId: Int,
     @ColumnInfo(name = "location") val location: Double,
     @ColumnInfo(name = "memo") val memo: String = ""
 )
