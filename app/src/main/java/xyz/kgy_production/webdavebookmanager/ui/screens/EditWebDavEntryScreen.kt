@@ -1,14 +1,21 @@
 package xyz.kgy_production.webdavebookmanager.ui.screens
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
@@ -42,13 +49,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import xyz.kgy_production.webdavebookmanager.LocalIsDarkTheme
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
+import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
-import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.EditWebDavEntryViewModel
+import xyz.kgy_production.webdavebookmanager.util.Logger
 
 @Composable
 fun EditWebDavEntryScreen(
@@ -69,6 +77,9 @@ fun EditWebDavEntryScreen(
         }
     }
     Scaffold(
+        modifier = Modifier
+            .imePadding()
+            .windowInsetsPadding(WindowInsets.systemBars),
         topBar = {
             CommonTopBar(
                 title = stringResource(id = R.string.screen_edit_webdav_entry_title),
@@ -97,6 +108,7 @@ fun EditWebDavEntryScreen(
     ) { padding ->
         Column(
             modifier = Modifier
+                .verticalScroll(ScrollState(0))
                 .padding(padding)
                 .fillMaxWidth()
                 .then(INTERNAL_HORIZONTAL_PADDING_MODIFIER)
@@ -207,10 +219,12 @@ private fun BottomBar(
     toReset: () -> Unit,
     toSubmit: () -> Unit
 ) {
+    val isDark = LocalIsDarkTheme.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 10.dp),
+            .background(if (isDark) Color.Black else Color.White),
         horizontalArrangement = Arrangement.Absolute.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
