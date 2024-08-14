@@ -40,15 +40,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.R
-import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
-import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.ui.component.DirectoryTopBar
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDING_MODIFIER
@@ -56,10 +52,8 @@ import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
-import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import java.util.concurrent.Executors
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel
@@ -82,20 +76,8 @@ fun DirectoryScreen(
     val currentPath = viewModel.currentPath.collectAsStateWithLifecycle()
     val contentList = viewModel.contentList.collectAsStateWithLifecycle()
     val isLoading = viewModel.isLoading.collectAsStateWithLifecycle()
-    val showFirstTimeDialog = viewModel.showFirstTimeDialog.collectAsStateWithLifecycle()
     val rootConf = viewModel.rootConf.collectAsStateWithLifecycle()
     val dirTree = viewModel.dirTree.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
-        CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher()).launch {
-            launch { viewModel.currentPath.collect { logger.d("currentPath: $it") } }
-            launch { viewModel.contentList.collect { logger.d("contentList" + it.joinToString(",")) } }
-            launch { viewModel.isLoading.collect { logger.d("isLoading: $it") } }
-            launch { viewModel.showFirstTimeDialog.collect { logger.d("showFirstTimeDialog: $it") } }
-            launch { viewModel.rootConf.collect { logger.d("rootConf: $it") } }
-            launch { viewModel.dirTree.collect { logger.d("dirTree: ${it?.current}") } }
-        }
-    }
 
     val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
     runBlocking(coroutineScope.coroutineContext) { viewModel.setWebDavModel(id) }
@@ -122,7 +104,7 @@ fun DirectoryScreen(
         viewModel.setIsLoading(true)
         viewModel.emptyContentList()
         coroutineScope.launch { viewModel.updateDirTree() }
-        coroutineScope.launch { viewModel.getRemoteContentList(currentPath.value) }
+        viewModel.getRemoteContentList(coroutineScope, currentPath.value)
     }
 
     LaunchedEffect(rootConf.value) {
@@ -137,14 +119,6 @@ fun DirectoryScreen(
         }
     }
 
-    if (showFirstTimeDialog.value) {
-        FirstTimeSetupDialog(
-            onDismiss = viewModel::disableFirstTimeDialog,
-            onConfirm = {
-                viewModel.execFirstTimeSetup(coroutineScope, snackBarHostState, ctx)
-            }
-        )
-    }
 
     Scaffold(
         topBar = {
@@ -206,7 +180,7 @@ fun DirectoryScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.init(destUrl, coroutineScope, ctx)
+        viewModel.init(destUrl, coroutineScope, ctx, snackBarHostState)
     }
 }
 
@@ -253,26 +227,6 @@ private fun ContentRow(content: DirectoryViewModel.ContentData, onClick: (String
             Text(text = content.name)
         }
     }
-}
-
-private suspend fun firstTimeLaunchCheck(
-    model: WebDavModel,
-    onIsFirstTime: () -> Unit
-): WebDavCacheData? {
-    var conf: WebDavCacheData? = null
-    getFileFromWebDav(
-        BOOK_METADATA_CONFIG_FILENAME,
-        model.url,
-        model.loginId,
-        model.password
-    ) { rawData ->
-        conf = rawData?.let { Json.decodeFromString(it.decodeToString()) }
-    }
-    if (conf == null) {
-        onIsFirstTime()
-    }
-
-    return conf
 }
 
 @Composable

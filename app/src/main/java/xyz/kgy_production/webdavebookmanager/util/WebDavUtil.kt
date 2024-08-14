@@ -17,7 +17,7 @@ import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 
 private val logger by Logger.delegate("WebDavUtil")
 
-fun getWebDavCollection(url: String, loginId: String, password: String): DavCollection {
+private fun getWebDavCollection(url: String, loginId: String, password: String): DavCollection {
     val authHandler = BasicDigestAuthHandler(
         domain = null,
         username = loginId,

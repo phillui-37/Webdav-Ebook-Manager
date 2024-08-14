@@ -39,6 +39,7 @@ import xyz.kgy_production.webdavebookmanager.ui.viewmodel.ReaderViewModel
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
+import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
@@ -80,7 +81,8 @@ fun updateCache(cacheData: WebDavCacheData, newBookMetaData: BookMetaData): WebD
                 newBookMetaData
             else
                 it
-        }
+        },
+        lastUpdateTime = LocalDateTime.now()
     )
 }
 
@@ -102,7 +104,7 @@ fun ReaderScreen(
     val _cacheData = remember {
         getCache(bookUrl, model) ?: throw RuntimeException("dir and book metadata not found")
     }
-    val cacheData = remember { _cacheData.first }
+    var cacheData = remember { _cacheData.first }
     var bookMetaData by remember { mutableStateOf(_cacheData.second.second) }
     var url by remember { mutableStateOf(bookUrl) }
     val snackBarHostState = remember { SnackbarHostState() }
@@ -118,6 +120,8 @@ fun ReaderScreen(
         onDispose {
             val token = updatingToken.incrementAndGet()
             CoroutineScope(Dispatchers.IO).launch {
+                cacheData = updateCache(cacheData, bookMetaData)
+                if (!ctx.isNetworkAvailable()) return@launch
                 val now = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
                 val timeDiff = now - cacheLastUpdateTime
                 if (timeDiff < 10)
@@ -126,7 +130,7 @@ fun ReaderScreen(
                 if (token == tokenNow) { // only get the latest update
                     try {
                         writeDataToWebDav(
-                            Json.encodeToString(updateCache(cacheData, bookMetaData)),
+                            Json.encodeToString(cacheData),
                             BOOK_METADATA_CONFIG_FILENAME,
                             model.url,
                             model.loginId,
@@ -193,7 +197,8 @@ fun ReaderScreen(
                 initProgress = bookMetaData.readProgress,
                 scrollUpdateCallback = {
                     bookMetaData = bookMetaData.copy(
-                        readProgress = it
+                        readProgress = it,
+                        lastUpdated = LocalDateTime.now()
                     )
                 }
             ) {

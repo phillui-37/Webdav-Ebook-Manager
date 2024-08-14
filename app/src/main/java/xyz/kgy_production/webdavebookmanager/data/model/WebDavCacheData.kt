@@ -6,6 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.fallbackMimeTypeMapping
+import xyz.kgy_production.webdavebookmanager.util.serializer.LocalDateTimeSerializer
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import java.time.LocalDateTime
@@ -13,7 +14,9 @@ import java.time.LocalDateTime
 @Serializable
 data class WebDavCacheData(
     val dirCache: List<WebDavDirNode>,
-    val bookMetaDataLs: List<BookMetaData>
+    val bookMetaDataLs: List<BookMetaData>,
+    @Serializable(with = LocalDateTimeSerializer::class)
+    val lastUpdateTime: LocalDateTime = LocalDateTime.now(),
 ) {
     private val logger by Logger.delegate(this::class.java)
 
