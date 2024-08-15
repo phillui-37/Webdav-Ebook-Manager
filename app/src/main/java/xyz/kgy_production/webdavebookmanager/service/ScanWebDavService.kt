@@ -99,11 +99,10 @@ class ScanWebDavService : JobService() {
     private val fileListQueue = Channel<DirectoryViewModel.ContentData>()
     private val bookMetaDataLs = mutableListOf<BookMetaData>()
     private val bookMetaDataLsMutex = Mutex()
-    private val fileCount = AtomicInteger(0)
     private val doneFileCount = AtomicInteger(0)
     private val workerThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val dirDispatcher =
-        Executors.newFixedThreadPool(2)
+        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2)
             .asCoroutineDispatcher()
     private val bookDispatcher =
         Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2)
@@ -249,18 +248,17 @@ class ScanWebDavService : JobService() {
             var sameFileCountCounter = 0
             while (true) {
                 checkAndRecoverNoti()
-                val countNow = fileCount.get()
                 val doneFileCountNow = doneFileCount.get()
-                if (sameFileCountCounter >= 10 && doneFileCountNow == countNow) break
+                if (sameFileCountCounter >= 10 && doneFileCountNow == fileCountSnapshot) break
 
                 logger.d(
-                    "File count now: $countNow, done file count now: $doneFileCountNow"
+                    "File count now: $doneFileCountNow, file count before: $fileCountSnapshot"
                 )
-                if (countNow == fileCountSnapshot) {
+                if (doneFileCountNow == fileCountSnapshot) {
                     sameFileCountCounter++
                 } else {
                     sameFileCountCounter = 0
-                    fileCountSnapshot = countNow
+                    fileCountSnapshot = doneFileCountNow
                 }
                 delay(1000) // check it every one second
             }
@@ -326,7 +324,6 @@ class ScanWebDavService : JobService() {
         val files = ls.filter { !it.isDir }
         CoroutineScope(Dispatchers.IO).launch {
             files.forEach {
-                fileCount.addAndGet(1)
                 CoroutineScope(bookDispatcher).launch {
                     fileListQueue.send(it)
                 }
@@ -358,15 +355,17 @@ class ScanWebDavService : JobService() {
                 val book = fileListQueue.receive()
                 logger.d("Received book ${book.name} from queue")
                 bookMetaDataLsMutex.withLock {
-                    bookMetaDataLs.add(BookMetaData(
-                        name = book.name,
-                        fileType = book.contentType?.run { "$type/$subtype" }
-                            ?: BookMetaData.NOT_AVAILABLE,
-                        fullUrl = book.fullUrl,
-                        relativePath = book.fullUrl.replace(baseUrl, ""),
-                        lastUpdated = LocalDateTime.now()
-                    ))
-                    doneFileCount.addAndGet(1)
+                    if (bookMetaDataLs.find { it.name == book.name } == null) {
+                        bookMetaDataLs.add(BookMetaData(
+                            name = book.name,
+                            fileType = book.contentType?.run { "$type/$subtype" }
+                                ?: BookMetaData.NOT_AVAILABLE,
+                            fullUrl = book.fullUrl,
+                            relativePath = book.fullUrl.replace(baseUrl, ""),
+                            lastUpdated = LocalDateTime.now()
+                        ))
+                        doneFileCount.addAndGet(1)
+                    }
                 }
             }
         }
