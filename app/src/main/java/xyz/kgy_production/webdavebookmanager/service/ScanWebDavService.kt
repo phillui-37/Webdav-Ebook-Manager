@@ -103,7 +103,7 @@ class ScanWebDavService : JobService() {
     private val doneFileCount = AtomicInteger(0)
     private val workerThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val dirDispatcher =
-        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2)
+        Executors.newFixedThreadPool(2)
             .asCoroutineDispatcher()
     private val bookDispatcher =
         Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2)
@@ -137,7 +137,10 @@ class ScanWebDavService : JobService() {
                 execute(data)
             } catch (e: Exception) {
                 e.printStackTrace()
-                stopSelf()
+                tidyUp {
+                    NotificationManagerCompat.from(this@ScanWebDavService)
+                        .cancel(NotificationChannelEnum.ScanWebDavService.id)
+                }
             }
         }
         return true
@@ -264,8 +267,6 @@ class ScanWebDavService : JobService() {
             logger.d(
                 "file count $fileCountSnapshot stable now, task can be finished"
             )
-            dirScanJob.cancel("Done")
-            bookMarshalJob.cancel("Done")
             writeDataToWebDav(
                 Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs).sorted()),
                 BOOK_METADATA_CONFIG_FILENAME,
@@ -273,9 +274,7 @@ class ScanWebDavService : JobService() {
                 webDavData.loginId,
                 webDavData.password
             )
-            cancelNotiAction()
-            stopSelf()
-            MainActivity.letScreenRest()
+            tidyUp(listOf(dirScanJob, bookMarshalJob), "Done", cancelNotiAction)
         }
     } ?: throw Err("null data is provided")
 
@@ -286,7 +285,10 @@ class ScanWebDavService : JobService() {
             param.getList { ls = it }
         } catch (e: Exception) {
             e.printStackTrace()
-            stopSelf()
+            tidyUp {
+                NotificationManagerCompat.from(this)
+                    .cancel(NotificationChannelEnum.ScanWebDavService.id)
+            }
         }
 
         val currentPath = param.url.replace(baseUrl, "").split("/")
@@ -368,5 +370,16 @@ class ScanWebDavService : JobService() {
                 }
             }
         }
+    }
+
+    private fun tidyUp(
+        deferList: List<Deferred<*>> = listOf(),
+        reason: String = "",
+        cancelNotiAction: () -> Unit
+    ) {
+        deferList.forEach { it.cancel(reason) }
+        cancelNotiAction()
+        stopSelf()
+        MainActivity.letScreenRest()
     }
 }
