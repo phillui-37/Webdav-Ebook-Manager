@@ -57,6 +57,8 @@ import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_HORIZONTAL_PADDIN
 import xyz.kgy_production.webdavebookmanager.ui.theme.INTERNAL_VERTICAL_PADDING_MODIFIER
 import xyz.kgy_production.webdavebookmanager.ui.viewmodel.EditWebDavEntryViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
+import xyz.kgy_production.webdavebookmanager.util.urlDecode
+import xyz.kgy_production.webdavebookmanager.util.urlEncode
 
 @Composable
 fun EditWebDavEntryScreen(
@@ -131,10 +133,10 @@ fun EditWebDavEntryScreen(
             }
             InputField(
                 label = stringResource(id = R.string.label_webdav_url),
-                value = model.url,
+                value = model.url.urlDecode(),
                 isRequired = true
             ) {
-                viewModel.updateModel(model.copy(url = it))
+                viewModel.updateModel(model.copy(url = it.urlEncode()))
             }
             InputField(
                 label = stringResource(id = R.string.label_webdav_login_id),

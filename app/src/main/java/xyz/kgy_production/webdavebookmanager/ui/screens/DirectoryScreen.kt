@@ -95,7 +95,7 @@ fun DirectoryScreen(
         else Regex(".*${it.pattern}.*")
     }
     val byPassPatternFilter: (String) -> Boolean =
-        { path -> re.all { !it.matches(path.urlDecode()) } }
+        { path -> re.all { !it.matches(path) } }
 
     BackHandler { viewModel.goBack(onBack) }
 
@@ -104,7 +104,7 @@ fun DirectoryScreen(
         viewModel.setIsLoading(true)
         viewModel.emptyContentList()
         coroutineScope.launch { viewModel.updateDirTree() }
-        viewModel.getRemoteContentList(coroutineScope, currentPath.value)
+        viewModel.getRemoteContentList(ctx, coroutineScope, currentPath.value)
     }
 
     LaunchedEffect(rootConf.value) {
@@ -191,7 +191,7 @@ private fun LazyListScope.ContentList(
     onDirClick: (String) -> Unit,
     onFileClick: (String, String, String) -> Unit,
 ) {
-    items(contentList.filter { it.isDir && byPassPatternFilter(it.fullUrl) && it.fullUrl.urlDecode() != currentPath }) { content ->
+    items(contentList.filter { it.isDir && byPassPatternFilter(it.fullUrl) && it.fullUrl != currentPath }) { content ->
         ContentRow(content = content, onClick = onDirClick)
     }
     items(contentList.filter { !it.isDir && byPassPatternFilter(it.fullUrl) && it.name != BOOK_METADATA_CONFIG_FILENAME }) { content ->
@@ -209,7 +209,7 @@ private fun ContentRow(content: DirectoryViewModel.ContentData, onClick: (String
             .padding(10.dp)
             .wrapContentHeight()
             .shadow(5.dp),
-        onClick = { onClick(content.fullUrl) }
+        onClick = { onClick(content.fullUrl.urlDecode()) }
     ) {
         Row(
             modifier = Modifier.padding(4.dp, 10.dp),

@@ -7,8 +7,6 @@ import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.fallbackMimeTypeMapping
 import xyz.kgy_production.webdavebookmanager.util.serializer.LocalDateTimeSerializer
-import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import java.time.LocalDateTime
 
 @Serializable
@@ -74,7 +72,7 @@ data class WebDavCacheData(
                 }
             }
             DirectoryViewModel.ContentData(
-                "$baseUrl${getWholeParentPath()}${current.urlEncode()}",
+                "$baseUrl${getWholeParentPath()}${current}",
                 current,
                 LocalDateTime.now(),
                 LocalDateTime.now(),
@@ -87,7 +85,7 @@ data class WebDavCacheData(
     fun dirToTree(baseUrl: String): WebDavDirTreeNode {
         // dir first
         val dirNodeList = dirCache.map {
-            (it.parent to it.children) to
+            (it.relativePath to it.children) to
                     WebDavDirTreeNode(it.current, null, true, mutableListOf())
         }.toMutableList()
 
@@ -111,7 +109,7 @@ data class WebDavCacheData(
             }
         }
         dirNodeList.filter { it.second.parent == null && it.first.first != null }
-            .forEach { logger.w("dir ${it.second.current} cannot find parent ${it.first.first}") }
+            .forEach { logger.w("dir ${it.second.current} cannot find relative path ${it.first.first}") }
 
         // book then
         bookMetaDataLs
@@ -119,7 +117,6 @@ data class WebDavCacheData(
                 val bookNode = WebDavDirTreeNode(book.name, null, false, listOf())
                 val parent = book.fullUrl
                     .replace(baseUrl, "")
-                    .urlDecode()
                     .split("/")
                     .let { it[it.size - 2] }
                     .ifEmpty { "/" }
@@ -134,4 +131,21 @@ data class WebDavCacheData(
             }
         return dirNodeList.map { it.second }.find { it.current == "/" }!!
     }
+
+    fun sorted() = WebDavCacheData(
+        dirCache = dirCache.sortedBy { it.relativePath },
+        bookMetaDataLs = bookMetaDataLs.sortedWith { a, b ->
+            when {
+                a.relativePath > b.relativePath -> 1
+                a.relativePath < b.relativePath -> -1
+                a.series > b.series -> 1
+                a.series < b.series -> -1
+                a.orderInSeries > b.orderInSeries -> 1
+                a.orderInSeries < b.orderInSeries -> -1
+                a.name > b.name -> 1
+                a.name < b.name -> -1
+                else -> 0
+            }
+        }
+    )
 }

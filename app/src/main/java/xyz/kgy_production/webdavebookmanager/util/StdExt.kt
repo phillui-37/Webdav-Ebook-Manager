@@ -53,5 +53,11 @@ fun String.formatDateTime(formatter: DateTimeFormatter): LocalDateTime {
 fun Long.toDateTime() =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(this), java.util.TimeZone.getDefault().toZoneId())
 
-fun String.urlEncode() = URLEncoder.encode(this, "utf-8").replace("+", "%20")
+fun String.urlEncode(): String {
+    val url = URL(this)
+    if (url.query == null) return this
+    val query = URLEncoder.encode(url.query, "utf-8")
+    return replace(url.query, query)
+}
+
 fun String.urlDecode() = URLDecoder.decode(this, "utf-8")

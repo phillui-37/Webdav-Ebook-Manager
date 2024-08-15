@@ -42,7 +42,6 @@ import xyz.kgy_production.webdavebookmanager.util.saveShareFile
 import xyz.kgy_production.webdavebookmanager.util.saveWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.toDateTime
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
-import xyz.kgy_production.webdavebookmanager.util.urlEncode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -69,7 +68,7 @@ class DirectoryViewModel @Inject constructor(
         companion object {
             fun fromResponse(response: Response): ContentData {
                 var result = ContentData(
-                    response.href.toString().run {
+                    response.href.toString().urlDecode().run {
                         if (endsWith("/")) substring(0, length - 1)
                         else this
                     },
@@ -189,11 +188,11 @@ class DirectoryViewModel @Inject constructor(
             if (data.isDir) {
                 dirTree.value?.let { tree ->
 //                    logger.d("tree search")
-                    tree.search(data.fullUrl.replace(model.url, "").urlDecode())
+                    tree.search(data.fullUrl.replace(model.url, ""))
                         ?.let {
 //                            logger.d("next layer")
                             val parentPath =
-                                "${model.url}${it.getWholeParentPath()}${it.current.urlEncode()}/"
+                                "${model.url}${it.getWholeParentPath()}${it.current}/"
 //                            logger.d("parent path: $parentPath")
                             pendingCheckList.addAll(it.children.map {
                                 it.toContentData(parentPath)
@@ -227,12 +226,6 @@ class DirectoryViewModel @Inject constructor(
                 logger.d("[init] first time launch for ${model.url}")
                 execFirstTimeSetup(coroutineScope, snackBarHostState, ctx)
             }
-            runBlocking(coroutineScope.coroutineContext) {
-                if (getLocalDirTreeCache(ctx) == null) {
-                    logger.d("[init] save dir tree cache to local")
-                    upsertLocalDirTreeCache(ctx, oriConf!!)
-                }
-            }
         }
 
         // !!!! only concern about which one is newer, not need to concern manual edit without updating lastUpdateTime
@@ -246,6 +239,12 @@ class DirectoryViewModel @Inject constructor(
             // network must be available else can't enter dir screen
             logger.d("[init] no local conf cache")
             oriConf = remoteConf
+            if (remoteConf != null) {
+                logger.d("[init] save dir tree cache to local")
+                coroutineScope.launch {
+                    upsertLocalDirTreeCache(ctx, remoteConf)
+                }
+            }
         } else if (remoteConf != null) {
             logger.d("[init] have local conf cache")
             oriConf = cmpDirCache(localConf, remoteConf) {
@@ -272,7 +271,7 @@ class DirectoryViewModel @Inject constructor(
         }
     }
 
-    fun getNonRootTitle(): String = _currentPath.value.split("/").run { get(size - 1) }.urlDecode()
+    fun getNonRootTitle(): String = _currentPath.value.split("/").run { get(size - 1) }
 
     fun goBack(onBack: () -> Unit) {
         if (isAtRoot) onBack()
@@ -310,22 +309,24 @@ class DirectoryViewModel @Inject constructor(
         }
     }
 
-    fun getRemoteContentList(coroutineScope: CoroutineScope, path: String) {
+    fun getRemoteContentList(ctx: Context, coroutineScope: CoroutineScope, path: String) {
         logger.d("[getRemoteContentList] $path")
         if (path.isEmpty()) return
-        coroutineScope.launch { _isLoading.emit(true) }
-        getWebDavDirContentList(
-            path,
-            model.loginId,
-            model.password
-        ) { contentList ->
-            coroutineScope.launch {
-                _contentList.emit(contentList)
-                _isLoading.emit(false)
-            }
+        coroutineScope.launch {
+            _isLoading.emit(true)
+            getWebDavDirContentList(
+                path,
+                model.loginId,
+                model.password
+            ) { contentList ->
+                coroutineScope.launch {
+                    _contentList.emit(contentList)
+                    _isLoading.emit(false)
+                }
 
-            if (oriConf != null) {
-                checkAndUpdateDirTreeNode(contentList)
+                if (oriConf != null) {
+                    checkAndUpdateDirTreeNode(ctx, model, coroutineScope, contentList)
+                }
             }
         }
     }
@@ -355,9 +356,9 @@ class DirectoryViewModel @Inject constructor(
         } else {
             val paths = path.split("/")
             val file = ctx.saveShareFile(
-                paths.last().urlDecode(),
+                paths.last(),
                 "/${model.uuid}" + paths.subList(0, paths.size - 1).joinToString("/")
-                    .replace(model.url, "").urlDecode()
+                    .replace(model.url, "")
             ) {
                 var data: ByteArray = byteArrayOf()
                 runBlocking(Dispatchers.IO) {
@@ -390,6 +391,7 @@ class DirectoryViewModel @Inject constructor(
         }
 
         if (conf == null) {
+            logger.d("[firstTimeLaunchCheck] no remote conf")
             onIsFirstTime()
         }
 
@@ -437,10 +439,18 @@ class DirectoryViewModel @Inject constructor(
         }
     }
 
-    private fun checkAndUpdateDirTreeNode(remoteContentList: List<ContentData>) {
+    /**
+     * This function only update the same relative path of the whole tree
+     */
+    private fun checkAndUpdateDirTreeNode(
+        ctx: Context,
+        webdavModel: WebDavModel,
+        coroutineScope: CoroutineScope,
+        remoteContentList: List<ContentData>
+    ) {
         val conf = oriConf!!
-        val dirCacheLs = conf.dirCache
-        val booksMetaData = conf.bookMetaDataLs
+        val dirCacheLs = conf.dirCache.toMutableList()
+        val booksMetaData = conf.bookMetaDataLs.toMutableList()
         val newDirs = mutableListOf<WebDavDirNode>()
         val newBooks = mutableListOf<BookMetaData>()
 
@@ -449,37 +459,82 @@ class DirectoryViewModel @Inject constructor(
             val paths = contentData.fullUrl
                 .replace(model.url, "")
                 .split("/")
-            val parent = paths[paths.size - 2].let { if (it == "") null else it }
+            val relativePath = paths.subList(0, paths.size - 2).joinToString("/")
+                .let { if (it == "") null else it }
             val current = paths.last()
             if (contentData.isDir) {
-                if (dirCacheLs.find { it.current == current && it.parent == parent } == null) {
-                    newDirs.add(WebDavDirNode(current, parent, listOf(), LocalDateTime.now()))
+                // dir part
+                val dirNode = WebDavDirNode(current, relativePath, listOf(), LocalDateTime.now())
+                val existingNode =
+                    dirCacheLs.find { it.current == current && it.relativePath == relativePath }
+                if (existingNode == null) newDirs.add(dirNode)
+                searchDirAndAppendChild(dirNode.current, dirCacheLs) { node ->
+                    relativePath?.let { it == node.relativePath } ?: false
                 }
             } else {
+                // book part
                 val targetBook = booksMetaData
                     .find {
-                        it.fullUrl == contentData.fullUrl && it.name == contentData.name && it.relativePath == paths.joinToString(
-                            "/"
-                        ).urlDecode()
+                        it.fullUrl == contentData.fullUrl
+                                && it.name == contentData.name
+                                && it.relativePath == (relativePath ?: "/")
                     }
                 if (targetBook == null) {
-                    newBooks.add(
-                        BookMetaData(
-                            name = contentData.name,
-                            fileType = fallbackMimeTypeMapping(current.split(".").last()),
-                            fullUrl = contentData.fullUrl,
-                            relativePath = paths.joinToString("/").urlDecode(),
-                            lastUpdated = LocalDateTime.now(),
-                        )
+                    val metadata = BookMetaData(
+                        name = contentData.name,
+                        fileType = fallbackMimeTypeMapping(current.split(".").last()),
+                        fullUrl = contentData.fullUrl,
+                        relativePath = relativePath ?: "/",
+                        lastUpdated = LocalDateTime.now(),
                     )
+                    newBooks.add(metadata)
                 }
             }
         }
 
-        // TODO compare dir children list: folder can be removed or added either
+        if (newDirs.size == 0 && newBooks.size == 0) return
+        dirCacheLs.forEach { existingDir ->
+            newDirs.find { it.relativePath == existingDir.relativePath }
+                ?: { newDirs.add(existingDir) }
+        }
 
-        // TODO map book to dir
+        // book add back to dir
+        newBooks.forEach { book ->
+            val checker: (WebDavDirNode) -> Boolean = {
+                (it.relativePath ?: "") + "/" + book.name == book.relativePath
+            }
+            searchDirAndAppendChild(book.name, newDirs, checker)
+        }
+        booksMetaData.forEach { book ->
+            val checker: (WebDavDirNode) -> Boolean = {
+                (it.relativePath ?: "") + "/" + book.name == book.relativePath
+            }
+            searchDirAndAppendChild(book.name, newDirs, checker)
+        }
 
-        // TODO write latest cache data to local and remote
+        val newConf =
+            conf.copy(dirCache = newDirs, bookMetaDataLs = booksMetaData + newBooks).sorted()
+
+        ctx.saveWebDavCache(newConf, webdavModel.uuid)
+        coroutineScope.launch {
+            writeDataToWebDav(
+                Json.encodeToString(newConf),
+                BOOK_METADATA_CONFIG_FILENAME,
+                webdavModel.url,
+                webdavModel.name,
+                webdavModel.password
+            )
+        }
+    }
+
+    private fun searchDirAndAppendChild(
+        name: String,
+        dirList: MutableList<WebDavDirNode>,
+        predicate: (WebDavDirNode) -> Boolean
+    ) {
+        val idx = dirList.indexOfFirst(predicate)
+        if (idx == -1 || dirList[idx].children.contains(name)) return
+        dirList[idx] =
+            dirList[idx].copy(children = listOf(*dirList[idx].children.toTypedArray(), name))
     }
 }

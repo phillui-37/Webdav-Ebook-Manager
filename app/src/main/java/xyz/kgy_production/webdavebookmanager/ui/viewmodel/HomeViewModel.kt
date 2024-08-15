@@ -39,7 +39,7 @@ class HomeViewModel @Inject constructor(
             webDavRepository.deleteEntry(id)
             webdavDomainList = webdavDomainList.filter { it.id != id }
             _filteredWebDavDomainListFlow.emit(listOf())
-            delay(300) // workaround to ensure the network availability icon display correctly
+            delay(500) // workaround to ensure the network availability icon display correctly
             _filteredWebDavDomainListFlow.emit(webdavDomainList)
         } catch (e: Exception) {
             logger.e(e.message ?: "Error occurred")

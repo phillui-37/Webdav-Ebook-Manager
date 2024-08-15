@@ -2,7 +2,6 @@ package xyz.kgy_production.webdavebookmanager
 
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import xyz.kgy_production.webdavebookmanager.util.urlEncode
 
 private object Screens {
     const val HOME = "home"
@@ -102,9 +101,10 @@ class NaviActions(private val navHostController: NavHostController) {
 
     fun navigateToReader(webDavId: Int, bookUrl: String, fromDirUrl: String) {
         navHostController.navigate(
-            "${Screens.READER}?${RouteArgs.Reader.BOOK_URL}=${
-                bookUrl.urlEncode()
-            }&${RouteArgs.Reader.WEBDAV_ID}=${webDavId}&${RouteArgs.Reader.FROM_DIR_URL}=${fromDirUrl.urlEncode()}"
+            """${Screens.READER}?
+                ${RouteArgs.Reader.BOOK_URL}=${bookUrl}
+                &${RouteArgs.Reader.WEBDAV_ID}=${webDavId}
+                &${RouteArgs.Reader.FROM_DIR_URL}=${fromDirUrl}""".trimIndent()
         )
     }
 }

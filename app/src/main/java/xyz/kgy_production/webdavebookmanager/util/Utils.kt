@@ -24,7 +24,7 @@ fun fallbackMimeTypeMapping(fileExt: String): String {
         "mobi" -> "application/x-mobipocket-ebook"
         "epub" -> "application/epub+zip"
         "pdf" -> "application/pdf"
-        "txt" -> "text/plain"
+        "txt", "md" -> "text/plain"
         else -> throw RuntimeException("File type $fileExt not supported!")
     }
 }

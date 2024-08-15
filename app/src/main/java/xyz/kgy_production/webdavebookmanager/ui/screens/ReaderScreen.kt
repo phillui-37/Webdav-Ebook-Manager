@@ -60,11 +60,12 @@ fun getCache(
             model.password
         )?.let { data ->
             val cacheRoot = Json.decodeFromString<WebDavCacheData>(data.decodeToString())
-            val bookPath = bookUrl.replace(model.url, "").split("/").map { it.urlDecode() }
+            val bookPath = bookUrl.urlDecode().replace(model.url, "").split("/")
             val current = bookPath[bookPath.size - 2]
-            val parent = bookPath[bookPath.size - 3].ifEmpty { "/" }
+            val relativePath =
+                bookPath.subList(0, bookPath.size - 3).joinToString("/").ifEmpty { "/" }
             cacheRoot.dirCache.find {
-                it.current == current && it.parent == parent
+                it.current == current && it.relativePath == relativePath
             }?.let { dirCache ->
                 cacheRoot.bookMetaDataLs.find { it.name == bookPath.last() }?.let { bookMetaData ->
                     cacheRoot to (dirCache to bookMetaData)
