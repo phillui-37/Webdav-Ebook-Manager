@@ -459,8 +459,12 @@ class DirectoryViewModel @Inject constructor(
             val paths = contentData.fullUrl
                 .replace(model.url, "")
                 .split("/")
-            val relativePath = paths.subList(0, paths.size - 2).joinToString("/")
-                .let { if (it == "") null else it }
+            val relativePath = when (paths.size) {
+                0 -> null
+                1 -> "/"
+                else -> paths.subList(0, paths.size - 2).joinToString("/")
+                    .let { if (it == "") null else it }
+            }  
             val current = paths.last()
             if (contentData.isDir) {
                 // dir part

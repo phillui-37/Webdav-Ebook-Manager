@@ -18,13 +18,12 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -48,15 +47,18 @@ import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class ScanWebDavService : JobService() {
-    private val logger by Logger.delegate(this::class.java)
 
     companion object {
-        fun startScanService(ctx: Context, id: Int) {
+        private val logger by Logger.delegate(ScanWebDavService::class.java)
+
+        fun startScanService(ctx: Context, id: Int, startNow: Boolean = true) {
+            logger.d("add service task to scheduler for model id: $id")
             val scheduler = ctx.getSystemService(JobScheduler::class.java)
             val builder = JobInfo.Builder(
                 NotificationChannelEnum.ScanWebDavService.id,
@@ -65,8 +67,10 @@ class ScanWebDavService : JobService() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     setMinimumLatency(0L)
                 }
-                setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
-                setRequiresBatteryNotLow(true)
+                if (!startNow) {
+                    setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
+                    setRequiresBatteryNotLow(true)
+                }
             }
 
             val bundle = PersistableBundle()
@@ -95,10 +99,11 @@ class ScanWebDavService : JobService() {
     }
 
     private lateinit var baseUrl: String
-    private val pendingCheckingQueue = Channel<GetCheckListParam>()
-    private val fileListQueue = Channel<DirectoryViewModel.ContentData>()
+    private val pendingCheckingQueue = MutableSharedFlow<GetCheckListParam>()
+    private val fileListQueue = MutableSharedFlow<DirectoryViewModel.ContentData>()
     private val bookMetaDataLs = mutableListOf<BookMetaData>()
     private val bookMetaDataLsMutex = Mutex()
+    private val receiveFileCount = AtomicInteger(0)
     private val doneFileCount = AtomicInteger(0)
     private val workerThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val dirDispatcher =
@@ -109,6 +114,9 @@ class ScanWebDavService : JobService() {
             .asCoroutineDispatcher()
     private val byPassPatterns = mutableListOf<Regex>()
     private val dirCacheList = mutableListOf<WebDavDirNode>()
+    private var isNotDone = AtomicBoolean(true)
+    private var dirTask: Job? = null
+    private var fileTask: Job? = null
 
     override fun onStartJob(params: JobParameters?): Boolean {
         logger.i("Job start")
@@ -119,7 +127,7 @@ class ScanWebDavService : JobService() {
         val id = params?.extras?.getInt("id", -1)!!
         if (id == -1) {
             logger.e("id not provided")
-            stopSelf()
+            tidyUp("id not provided") {}
         }
 
         CoroutineScope(workerThreadDispatcher).launch {
@@ -128,7 +136,7 @@ class ScanWebDavService : JobService() {
                 baseUrl = it.url
             } ?: run {
                 logger.w("id not valid")
-                stopSelf()
+                tidyUp("id not valid") {}
             }
 
             logger.d("$data")
@@ -136,7 +144,7 @@ class ScanWebDavService : JobService() {
                 execute(data)
             } catch (e: Exception) {
                 e.printStackTrace()
-                tidyUp {
+                tidyUp("fail") {
                     NotificationManagerCompat.from(this@ScanWebDavService)
                         .cancel(NotificationChannelEnum.ScanWebDavService.id)
                 }
@@ -215,6 +223,9 @@ class ScanWebDavService : JobService() {
         )
             throw Err("'${webDavData.url}' not reachable")
 
+        dirTask = getDirScanJob().apply { start() }
+        fileTask = getBookMarshalJob(webDavData.url).apply { start() }
+
         MainActivity.keepScreenOn()
         logger.d("Start handling ${webDavData.url.urlDecode()}")
         val cancelNotiAction =
@@ -230,12 +241,7 @@ class ScanWebDavService : JobService() {
                 byPassPatterns.add(Regex(BOOK_METADATA_CONFIG_FILENAME))
             }
 
-        val dirScanJob = getDirScanJob()
-        val bookMarshalJob = getBookMarshalJob(webDavData.url)
-        dirScanJob.start()
-        bookMarshalJob.start()
-
-        pendingCheckingQueue.send(
+        pendingCheckingQueue.emit(
             GetCheckListParam(
                 webDavData.url,
                 webDavData.loginId,
@@ -246,25 +252,30 @@ class ScanWebDavService : JobService() {
         CoroutineScope(Dispatchers.IO).launch {
             var fileCountSnapshot = 0
             var sameFileCountCounter = 0
-            while (true) {
+            while (isNotDone.get()) {
                 checkAndRecoverNoti()
                 val doneFileCountNow = doneFileCount.get()
-                if (sameFileCountCounter >= 10 && doneFileCountNow == fileCountSnapshot) break
-
-                logger.d(
-                    "File count now: $doneFileCountNow, file count before: $fileCountSnapshot"
-                )
-                if (doneFileCountNow == fileCountSnapshot) {
-                    sameFileCountCounter++
-                } else {
-                    sameFileCountCounter = 0
-                    fileCountSnapshot = doneFileCountNow
+                if (sameFileCountCounter >= 10 && doneFileCountNow == fileCountSnapshot)
+                    isNotDone.set(true)
+                else {
+                    logger.d(
+                        "File count now: $doneFileCountNow, file count before: $fileCountSnapshot, received file: ${receiveFileCount.get()}"
+                    )
+                    if (doneFileCountNow == fileCountSnapshot) {
+                        sameFileCountCounter++
+                    } else {
+                        sameFileCountCounter = 0
+                        fileCountSnapshot = doneFileCountNow
+                    }
+                    delay(1000) // check it every one second
                 }
-                delay(1000) // check it every one second
             }
+            isNotDone.set(true)
             logger.d(
                 "file count $fileCountSnapshot stable now, task can be finished"
             )
+
+            // save the conf
             writeDataToWebDav(
                 Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs).sorted()),
                 BOOK_METADATA_CONFIG_FILENAME,
@@ -272,7 +283,12 @@ class ScanWebDavService : JobService() {
                 webDavData.loginId,
                 webDavData.password
             )
-            tidyUp(listOf(dirScanJob, bookMarshalJob), "Done", cancelNotiAction)
+//            this@ScanWebDavService.saveWebDavCache(
+//                WebDavCacheData(dirCacheList, bookMetaDataLs).sorted(),
+//                webDavData.uuid
+//            )
+
+            tidyUp("Done", cancelNotiAction)
         }
     } ?: throw Err("null data is provided")
 
@@ -283,7 +299,7 @@ class ScanWebDavService : JobService() {
             param.getList { ls = it }
         } catch (e: Exception) {
             e.printStackTrace()
-            tidyUp {
+            tidyUp("fail") {
                 NotificationManagerCompat.from(this)
                     .cancel(NotificationChannelEnum.ScanWebDavService.id)
             }
@@ -304,29 +320,33 @@ class ScanWebDavService : JobService() {
 
         ls = ls.filter { item ->
             byPassPatterns.all {
-                !it.matches(item.fullUrl)
+                !it.matches(item.fullUrl.urlDecode())
             }
         }
+
         val folders = ls.filter { it.isDir }
+        logger.d("push ${folders.size} dirs to queue")
         CoroutineScope(Dispatchers.IO).launch {
             folders.forEach {
-                CoroutineScope(dirDispatcher).launch {
-                    pendingCheckingQueue.send(
-                        GetCheckListParam(
-                            it.fullUrl,
-                            param.loginId,
-                            param.password
-                        )
+                pendingCheckingQueue.emit(
+                    GetCheckListParam(
+                        it.fullUrl,
+                        param.loginId,
+                        param.password
                     )
-                }
+                )
             }
         }
-        val files = ls.filter { !it.isDir }
+
+        val files = bookMetaDataLsMutex.withLock {
+            ls.filter {
+                !it.isDir && bookMetaDataLs.find { book -> it.name == book.name && it.fullUrl == book.fullUrl } == null
+            }
+        }
+        logger.d("push ${files.size} files to queue")
         CoroutineScope(Dispatchers.IO).launch {
             files.forEach {
-                CoroutineScope(bookDispatcher).launch {
-                    fileListQueue.send(it)
-                }
+                fileListQueue.emit(it)
             }
         }
 
@@ -337,10 +357,10 @@ class ScanWebDavService : JobService() {
         )
     }
 
-    private fun getDirScanJob(): Deferred<Unit> {
-        return CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher()).async {
-            while (true) {
-                val dirUrl = pendingCheckingQueue.receive()
+    private fun getDirScanJob(): Job {
+        return CoroutineScope(dirDispatcher).launch {
+            logger.d("execute getDirScanJob")
+            pendingCheckingQueue.collect { dirUrl ->
                 logger.d("Received url ${dirUrl.url} from queue")
                 CoroutineScope(dirDispatcher).launch {
                     updateCheckingList(dirUrl)
@@ -349,13 +369,17 @@ class ScanWebDavService : JobService() {
         }
     }
 
-    private fun getBookMarshalJob(baseUrl: String): Deferred<Unit> {
-        return CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher()).async {
-            while (true) {
-                val book = fileListQueue.receive()
+    private fun getBookMarshalJob(baseUrl: String): Job {
+        return CoroutineScope(bookDispatcher).launch {
+            logger.d("execute getBookMarshalJob")
+            fileListQueue.collect { book ->
                 logger.d("Received book ${book.name} from queue")
                 bookMetaDataLsMutex.withLock {
-                    if (bookMetaDataLs.find { it.name == book.name } == null) {
+                    receiveFileCount.addAndGet(1)
+                    val bookRelativePath = book.fullUrl.replace(baseUrl, "")
+                    val dupBook =
+                        bookMetaDataLs.find { it.name == book.name && it.relativePath == bookRelativePath }
+                    if (dupBook == null) {
                         bookMetaDataLs.add(BookMetaData(
                             name = book.name,
                             fileType = book.contentType?.run { "$type/$subtype" }
@@ -365,6 +389,8 @@ class ScanWebDavService : JobService() {
                             lastUpdated = LocalDateTime.now()
                         ))
                         doneFileCount.addAndGet(1)
+                    } else {
+                        logger.d("duplicate book:\nreceived->$book\nexists->$dupBook$")
                     }
                 }
             }
@@ -372,12 +398,14 @@ class ScanWebDavService : JobService() {
     }
 
     private fun tidyUp(
-        deferList: List<Deferred<*>> = listOf(),
-        reason: String = "",
+        reason: String,
         cancelNotiAction: () -> Unit
     ) {
-        deferList.forEach { it.cancel(reason) }
+        dirTask?.cancel(reason)
+        fileTask?.cancel(reason)
         cancelNotiAction()
+        bookDispatcher.close()
+        dirDispatcher.close()
         stopSelf()
         MainActivity.letScreenRest()
     }
