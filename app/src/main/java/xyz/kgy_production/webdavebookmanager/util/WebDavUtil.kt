@@ -88,6 +88,7 @@ fun writeDataToWebDav(
     password: String,
     overwrite: Boolean = false,
 ) {
+    logger.d("[writeDataToWebDav], $filename, $url, $loginId, $password, $data")
     val collection = getWebDavCollection("$url/$filename", loginId, password)
     try {
         collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->

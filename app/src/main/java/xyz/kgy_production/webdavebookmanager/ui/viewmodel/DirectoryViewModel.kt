@@ -525,7 +525,7 @@ class DirectoryViewModel @Inject constructor(
                 Json.encodeToString(newConf),
                 BOOK_METADATA_CONFIG_FILENAME,
                 webdavModel.url,
-                webdavModel.name,
+                webdavModel.loginId,
                 webdavModel.password
             )
         }

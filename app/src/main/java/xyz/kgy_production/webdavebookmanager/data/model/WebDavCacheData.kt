@@ -82,12 +82,13 @@ data class WebDavCacheData(
         }
     }
 
-    fun dirToTree(baseUrl: String): WebDavDirTreeNode {
+    fun dirToTree(baseUrl: String): WebDavDirTreeNode? {
         // dir first
         val dirNodeList = dirCache.map {
             (it.relativePath to it.children) to
                     WebDavDirTreeNode(it.current, null, true, mutableListOf())
         }.toMutableList()
+        if (dirNodeList.size == 0) return null
 
         for (i in dirNodeList.indices) {
             val currentNode = dirNodeList[i]
@@ -129,7 +130,9 @@ data class WebDavCacheData(
                     logger.w("book ${book.name} cannot find parent $parent")
                 }
             }
-        return dirNodeList.map { it.second }.find { it.current == "/" }!!
+        return dirNodeList
+            .map { it.second }
+            .find { it.current == "/" }!!
     }
 
     fun sorted() = WebDavCacheData(

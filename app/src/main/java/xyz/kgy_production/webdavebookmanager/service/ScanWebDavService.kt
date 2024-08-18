@@ -232,7 +232,7 @@ class ScanWebDavService : JobService() {
             }
             .let {
                 byPassPatterns.addAll(it)
-                byPassPatterns.add(Regex(BOOK_METADATA_CONFIG_FILENAME))
+                byPassPatterns.add(Regex(".*${BOOK_METADATA_CONFIG_FILENAME}.*"))
             }
 
         pendingCheckingList.add(
@@ -317,7 +317,7 @@ class ScanWebDavService : JobService() {
         ls = pendingMutex.withLock {
             ls.filter { item ->
                 byPassPatterns.all {
-                    !it.matches(item.fullUrl.urlDecode())
+                    !it.matches(item.fullUrl.urlDecode()) && !it.matches(item.name)
                 } && !doneCheckingList.contains(item.fullUrl)
             }
         }
