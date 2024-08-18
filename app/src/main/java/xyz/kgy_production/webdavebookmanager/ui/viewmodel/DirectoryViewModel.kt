@@ -217,20 +217,26 @@ class DirectoryViewModel @Inject constructor(
         snackBarHostState: SnackbarHostState
     ) {
         logger.d("[init] ${model.url}, ${_currentPath.value}")
+
 //        if (model.url == _currentPath.value) return
 
         var remoteConf: WebDavCacheData? = null
         if (ctx.isNetworkAvailable()) {
             logger.d("[init] has network")
-            remoteConf = firstTimeLaunchCheck(model, coroutineScope.coroutineContext) {
-                logger.d("[init] first time launch for ${model.url}")
-                execFirstTimeSetup(coroutineScope, snackBarHostState, ctx)
+            if (destUrl == model.url) {
+                remoteConf = firstTimeLaunchCheck(model, coroutineScope.coroutineContext) {
+                    logger.d("[init] first time launch for ${model.url}")
+                    execFirstTimeSetup(coroutineScope, snackBarHostState, ctx)
+                }
+            } else if (destUrl != null) {
+                remoteConf = getDirCache(coroutineScope, destUrl)
             }
         }
 
         // !!!! only concern about which one is newer, not need to concern manual edit without updating lastUpdateTime
+        val localDirPath = (destUrl ?: model.url).replace(model.url, "")
         val localConf = runBlocking(coroutineScope.coroutineContext) {
-            getLocalDirTreeCache(ctx)
+            getLocalDirTreeCache(ctx, localDirPath)
         }
 
         logger.d("[init] conf status: local->${localConf == null}, remote->${remoteConf == null}")
@@ -242,7 +248,7 @@ class DirectoryViewModel @Inject constructor(
             if (remoteConf != null) {
                 logger.d("[init] save dir tree cache to local")
                 coroutineScope.launch {
-                    upsertLocalDirTreeCache(ctx, remoteConf)
+                    upsertLocalDirTreeCache(ctx, remoteConf, localDirPath)
                 }
             }
         } else if (remoteConf != null) {
@@ -325,7 +331,7 @@ class DirectoryViewModel @Inject constructor(
                 }
 
                 if (oriConf != null) {
-                    checkAndUpdateDirTreeNode(ctx, model, coroutineScope, contentList)
+                    checkAndUpdateDirTreeNode(ctx, model, coroutineScope, contentList, path)
                 }
             }
         }
@@ -398,12 +404,12 @@ class DirectoryViewModel @Inject constructor(
         return conf
     }
 
-    private fun getLocalDirTreeCache(ctx: Context): WebDavCacheData? {
-        return ctx.getWebDavCache(model.uuid)
+    private fun getLocalDirTreeCache(ctx: Context, path: String): WebDavCacheData? {
+        return ctx.getWebDavCache(model.uuid, path)
     }
 
-    private fun upsertLocalDirTreeCache(ctx: Context, cacheData: WebDavCacheData) {
-        ctx.saveWebDavCache(cacheData, model.uuid)
+    private fun upsertLocalDirTreeCache(ctx: Context, cacheData: WebDavCacheData, path: String) {
+        ctx.saveWebDavCache(cacheData, model.uuid, path)
     }
 
     private fun execFirstTimeSetup(
@@ -446,7 +452,8 @@ class DirectoryViewModel @Inject constructor(
         ctx: Context,
         webdavModel: WebDavModel,
         coroutineScope: CoroutineScope,
-        remoteContentList: List<ContentData>
+        remoteContentList: List<ContentData>,
+        currentUrl: String
     ) {
         val conf = oriConf!!
         val dirCacheLs = conf.dirCache.toMutableList()
@@ -519,12 +526,12 @@ class DirectoryViewModel @Inject constructor(
         val newConf =
             conf.copy(dirCache = newDirs, bookMetaDataLs = booksMetaData + newBooks).sorted()
 
-        ctx.saveWebDavCache(newConf, webdavModel.uuid)
         coroutineScope.launch {
+            ctx.saveWebDavCache(newConf, webdavModel.uuid, currentUrl.replace(model.url, ""))
             writeDataToWebDav(
                 Json.encodeToString(newConf),
                 BOOK_METADATA_CONFIG_FILENAME,
-                webdavModel.url,
+                currentUrl,
                 webdavModel.loginId,
                 webdavModel.password
             )
@@ -540,5 +547,15 @@ class DirectoryViewModel @Inject constructor(
         if (idx == -1 || dirList[idx].children.contains(name)) return
         dirList[idx] =
             dirList[idx].copy(children = listOf(*dirList[idx].children.toTypedArray(), name))
+    }
+
+    private fun getDirCache(
+        coroutineScope: CoroutineScope,
+        destUrl: String,
+    ): WebDavCacheData? {
+        return runBlocking(coroutineScope.coroutineContext) {
+            getFileFromWebDav(destUrl, model.loginId, model.password)
+                ?.let { Json.decodeFromString(it.decodeToString()) }
+        }
     }
 }

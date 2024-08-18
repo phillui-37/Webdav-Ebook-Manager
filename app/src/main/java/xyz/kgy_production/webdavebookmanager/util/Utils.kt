@@ -8,6 +8,8 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toLowerCase
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 
+private val logger by Logger.delegate("Utils")
+
 @Composable
 fun getPainterFromDrawable(@DrawableRes resId: Int) =
     rememberDrawablePainter(
@@ -18,6 +20,7 @@ fun getPainterFromDrawable(@DrawableRes resId: Int) =
     )
 
 fun fallbackMimeTypeMapping(fileExt: String): String {
+    logger.d("[fallbackMimeTypeMapping] $fileExt")
     return when (fileExt.toLowerCase(Locale.current)) {
         "azw" -> "application/vnd.amazon.ebook"
         "azw3" -> "application/vnd.amazon.mobi8-ebook"

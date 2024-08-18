@@ -10,6 +10,7 @@ import at.bitfire.dav4jvm.property.GetContentLength
 import at.bitfire.dav4jvm.property.GetContentType
 import at.bitfire.dav4jvm.property.GetLastModified
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -73,10 +74,26 @@ fun writeDataToWebDav(
     url: String,
     loginId: String,
     password: String,
+    overwrite: Boolean = false,
+    mimeType: MediaType = MimeType.JSON.toMediaType(),
 ) {
+    logger.d("[writeDataToWebDav], $filename, $url, $loginId, $password, $data")
     val collection = getWebDavCollection("$url/$filename", loginId, password)
-    collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
-        logger.d("[writeBookMetaDatasToWebDav] ${response.code}: ${response.body}")
+    try {
+        collection.put(data.toRequestBody(mimeType)) { response ->
+            logger.d("[writeDataToWebDav] ${response.code}: ${response.body}")
+        }
+    } catch (e: ConflictException) {
+        if (overwrite) {
+            collection.delete { response ->
+                logger.d("[writeDataToWebDav] delete $filename with response ${response.code}")
+            }
+            collection.put(data.toRequestBody(mimeType)) { response ->
+                logger.d("[writeDataToWebDav] ${response.code}: ${response.body}")
+            }
+        } else {
+            logger.e("[writeDataToWebDav] file $filename has conflict, cannot write data to it")
+        }
     }
 }
 
@@ -87,23 +104,24 @@ fun writeDataToWebDav(
     loginId: String,
     password: String,
     overwrite: Boolean = false,
+    mimeType: MediaType = MimeType.JSON.toMediaType()
 ) {
     logger.d("[writeDataToWebDav], $filename, $url, $loginId, $password, $data")
     val collection = getWebDavCollection("$url/$filename", loginId, password)
     try {
         collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
-            logger.d("[writeBookMetaDatasToWebDav] ${response.code}: ${response.body}")
+            logger.d("[writeDataToWebDav] ${response.code}: ${response.body}")
         }
     } catch (e: ConflictException) {
         if (overwrite) {
             collection.delete { response ->
-                logger.d("[writeBookMetaDatasToWebDav] delete $filename with response ${response.code}")
+                logger.d("[writeDataToWebDav] delete $filename with response ${response.code}")
             }
-            collection.put(data.toRequestBody(MimeType.JSON.toMediaType())) { response ->
-                logger.d("[writeBookMetaDatasToWebDav] ${response.code}: ${response.body}")
+            collection.put(data.toRequestBody(mimeType)) { response ->
+                logger.d("[writeDataToWebDav] ${response.code}: ${response.body}")
             }
         } else {
-            logger.e("[writeBookMetaDatasToWebDav] file $filename has conflict, cannot run data to it")
+            logger.e("[writeDataToWebDav] file $filename has conflict, cannot write data to it")
         }
     }
 }

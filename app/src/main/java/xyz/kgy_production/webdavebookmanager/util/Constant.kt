@@ -26,7 +26,7 @@ object MimeType {
     const val JSON = "application/json"
 }
 
-const val BOOK_METADATA_CONFIG_FILENAME = "webdav_mgr.conf.json"
+const val BOOK_METADATA_CONFIG_FILENAME = ".webdav_mgr.conf.json"
 
 enum class NotificationChannelEnum(val tag: String, val id: Int) {
     ScanWebDavService("Scan Server Directory", 200)

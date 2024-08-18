@@ -40,6 +40,7 @@ import xyz.kgy_production.webdavebookmanager.util.NotificationChannelEnum
 import xyz.kgy_production.webdavebookmanager.util.checkIsWebDavDomainAvailable
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
+import xyz.kgy_production.webdavebookmanager.util.saveWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
@@ -96,13 +97,9 @@ class ScanWebDavService : JobService() {
     private lateinit var baseUrl: String
     private val pendingCheckingList = mutableListOf<GetCheckListParam>()
     private val doneCheckingList = mutableListOf<String>()
-    private val bookMetaDataLs = mutableListOf<BookMetaData>()
     private val workerThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val pendingMutex = Mutex()
-    private val dirMutex = Mutex()
-    private val bookMutex = Mutex()
     private val byPassPatterns = mutableListOf<Regex>()
-    private val dirCacheList = mutableListOf<WebDavDirNode>()
 
     override fun onStartJob(params: JobParameters?): Boolean {
         logger.i("Job start")
@@ -248,15 +245,13 @@ class ScanWebDavService : JobService() {
             var firstTime = true
             while (isNotEmpty) {
                 checkAndRecoverNoti()
-                logger.d(
-                    "File count now: ${bookMetaDataLs.size}, pending list size: ${pendingCheckingList.size}"
-                )
+                logger.d("pending list size: ${pendingCheckingList.size}")
                 try {
                     val param = pendingMutex.withLock {
                         pendingCheckingList.removeFirst()
                     }
                     CoroutineScope(Dispatchers.IO).launch {
-                        updateCheckingList(param)
+                        updateCheckingList(webDavData, param)
                     }
                     if (firstTime) {
                         delay(2000)
@@ -271,26 +266,18 @@ class ScanWebDavService : JobService() {
             }
             logger.d("task done")
 
-            // save the conf
-            writeDataToWebDav(
-                Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs).sorted()),
-                BOOK_METADATA_CONFIG_FILENAME,
-                webDavData.url,
-                webDavData.loginId,
-                webDavData.password
-            )
-//            this@ScanWebDavService.saveWebDavCache(
-//                WebDavCacheData(dirCacheList, bookMetaDataLs).sorted(),
-//                webDavData.uuid
-//            )
+
 
             tidyUp("Done", cancelNotiAction)
         }
     } ?: throw Err("null data is provided")
 
-    private suspend fun updateCheckingList(param: GetCheckListParam) {
+    private suspend fun updateCheckingList(webDavData: WebDavModel, param: GetCheckListParam) {
         logger.d("[updateCheckingList] checking '${param.url.urlDecode()}'")
         var ls = listOf<DirectoryViewModel.ContentData>()
+        val dirCacheList = mutableListOf<WebDavDirNode>()
+        val bookMetaDataLs = mutableListOf<BookMetaData>()
+
         try {
             param.getList { ls = it }
         } catch (e: Exception) {
@@ -312,7 +299,7 @@ class ScanWebDavService : JobService() {
             ls.map { it.fullUrl.split("/").last() },
             LocalDateTime.now(),
         )
-        dirMutex.withLock { dirCacheList.add(dirCache) }
+        dirCacheList.add(dirCache)
 
         ls = pendingMutex.withLock {
             ls.filter { item ->
@@ -337,50 +324,57 @@ class ScanWebDavService : JobService() {
                 .also(pendingCheckingList::addAll)
         }
 
-        val files = bookMutex.withLock {
-            ls.filter {
-                !it.isDir && bookMetaDataLs.find { book -> it.name == book.name && it.fullUrl == book.fullUrl } == null
-            }
-        }
+        val files = ls.filter { !it.isDir }
         logger.d("push ${files.size} files to queue")
-        marshalBook(baseUrl, files)
+        bookMetaDataLs.addAll(marshalBook(baseUrl, files))
 
         logger.d(
             "[getCheckingList] '${
                 param.url.urlDecode()
             }' has ${folders.size} folders and ${files.size} files"
         )
+
+        // save the conf
+        writeDataToWebDav(
+            Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs).sorted()),
+            BOOK_METADATA_CONFIG_FILENAME,
+            param.url,
+            webDavData.loginId,
+            webDavData.password
+        )
+        this@ScanWebDavService.saveWebDavCache(
+            WebDavCacheData(dirCacheList, bookMetaDataLs).sorted(),
+            webDavData.uuid,
+            param.url.replace(webDavData.url, "")
+        )
     }
 
-    private suspend fun marshalBook(baseUrl: String, books: List<DirectoryViewModel.ContentData>) {
+    private fun marshalBook(
+        baseUrl: String,
+        books: List<DirectoryViewModel.ContentData>
+    ): List<BookMetaData> {
         logger.d("execute getBookMarshalJob")
+        val ret = mutableListOf<BookMetaData>()
         books.forEach { book ->
             logger.d("Received book ${book.name} from queue")
             val bookRelativePath = book.fullUrl.replace(baseUrl, "")
-            val dupBook = bookMutex.withLock {
-                bookMetaDataLs.find { it.name == book.name && it.relativePath == bookRelativePath }
-            }
-            if (dupBook == null) {
-                bookMutex.withLock {
-                    bookMetaDataLs.add(BookMetaData(
-                        name = book.name,
-                        fileType = book.contentType?.run { "$type/$subtype" }
-                            ?: BookMetaData.NOT_AVAILABLE,
-                        fullUrl = book.fullUrl,
-                        relativePath = book.fullUrl.replace(baseUrl, ""),
-                        lastUpdated = LocalDateTime.now()
-                    ))
-                }
-            } else {
-                logger.d("duplicate book:\nreceived->$book\nexists->$dupBook$")
-            }
+            ret.add(BookMetaData(
+                name = book.name,
+                fileType = book.contentType?.run { "$type/$subtype" }
+                    ?: BookMetaData.NOT_AVAILABLE,
+                fullUrl = book.fullUrl,
+                relativePath = bookRelativePath,
+                lastUpdated = LocalDateTime.now()
+            ))
         }
+        return ret
     }
 
     private fun tidyUp(
         reason: String,
         cancelNotiAction: () -> Unit
     ) {
+        logger.d("[tidyUp] reason: $reason")
         cancelNotiAction()
         stopSelf()
         MainActivity.letScreenRest()

@@ -12,11 +12,14 @@ import xyz.kgy_production.webdavebookmanager.BuildConfig
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import java.io.File
 
+private val logger by Logger.delegate("AndroidUtil")
+
 fun Context.getShareDir() = "$filesDir/share"
 fun Context.getExtAssetsDir() = "$filesDir/extAssets"
 fun Context.getWebDavCacheDir() = "$filesDir/dirTreeCache"
 
 fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
+    logger.d("[saveFile] $path/$fileName")
     File(path).mkdirs()
     val file = File(path, fileName)
     if (!file.exists()) {
@@ -25,14 +28,26 @@ fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
     return file
 }
 
-fun Context.saveWebDavCache(cache: WebDavCacheData, webDavUuid: String) {
-    saveFile("$webDavUuid.json", getWebDavCacheDir()) {
+private fun getWebDavFilePath(webDavUuid: String, path: String?): String {
+    val paths = path?.split("/")
+    val dir = webDavUuid.let {
+        when {
+            paths == null || paths.size <= 1 -> it
+            else -> "$it/${paths.subList(0, paths.size - 1).joinToString("/")}"
+        }
+    }
+    return "$dir/${paths?.last() ?: "root"}.json"
+}
+
+fun Context.saveWebDavCache(cache: WebDavCacheData, webDavUuid: String, path: String) {
+    saveFile(getWebDavFilePath(webDavUuid, path), getWebDavCacheDir()) {
         Json.encodeToString(cache).encodeToByteArray()
     }
 }
 
-fun Context.getWebDavCache(webDavUuid: String): WebDavCacheData? {
-    val file = File(getWebDavCacheDir(), "$webDavUuid.json")
+fun Context.getWebDavCache(webDavUuid: String, path: String): WebDavCacheData? {
+    val file = File(getWebDavCacheDir(), getWebDavFilePath(webDavUuid, path))
+    logger.d("[getWebDavCache] file path: ${file.path}")
     if (!file.exists()) return null
     return Json.decodeFromString(file.readText())
 }
