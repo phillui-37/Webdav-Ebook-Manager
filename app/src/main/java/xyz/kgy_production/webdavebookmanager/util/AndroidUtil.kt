@@ -28,7 +28,7 @@ fun saveFile(fileName: String, path: String, getData: () -> ByteArray): File {
     return file
 }
 
-private fun getWebDavFilePath(webDavUuid: String, path: String?): String {
+private fun getWebDavFilePath(webDavUuid: String, path: String?): Pair<String, String> {
     val paths = path?.split("/")
     val dir = webDavUuid.let {
         when {
@@ -36,17 +36,19 @@ private fun getWebDavFilePath(webDavUuid: String, path: String?): String {
             else -> "$it/${paths.subList(0, paths.size - 1).joinToString("/")}"
         }
     }
-    return "$dir/${paths?.last() ?: "root"}.json"
+    return dir to "${(paths?.last() ?: "root").ifEmpty { "root" }}.json"
 }
 
 fun Context.saveWebDavCache(cache: WebDavCacheData, webDavUuid: String, path: String) {
-    saveFile(getWebDavFilePath(webDavUuid, path), getWebDavCacheDir()) {
+    val (dir, filename) = getWebDavFilePath(webDavUuid, path)
+    saveFile(filename, getWebDavCacheDir() + "/$dir") {
         Json.encodeToString(cache).encodeToByteArray()
     }
 }
 
 fun Context.getWebDavCache(webDavUuid: String, path: String): WebDavCacheData? {
-    val file = File(getWebDavCacheDir(), getWebDavFilePath(webDavUuid, path))
+    val (dir, filename) = getWebDavFilePath(webDavUuid, path)
+    val file = File(getWebDavCacheDir() + "/$dir", filename)
     logger.d("[getWebDavCache] file path: ${file.path}")
     if (!file.exists()) return null
     return Json.decodeFromString(file.readText())

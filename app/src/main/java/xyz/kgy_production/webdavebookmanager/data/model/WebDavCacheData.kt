@@ -1,11 +1,13 @@
 package xyz.kgy_production.webdavebookmanager.data.model
 
+import android.content.Context
 import kotlinx.serialization.Serializable
-import okhttp3.MediaType
-import okhttp3.MediaType.Companion.toMediaType
-import xyz.kgy_production.webdavebookmanager.ui.viewmodel.DirectoryViewModel
+import kotlinx.serialization.json.Json
+import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
-import xyz.kgy_production.webdavebookmanager.util.fallbackMimeTypeMapping
+import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
+import xyz.kgy_production.webdavebookmanager.util.getWebDavCache
+import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.serializer.LocalDateTimeSerializer
 import java.time.LocalDateTime
 
@@ -18,121 +20,124 @@ data class WebDavCacheData(
 ) {
     private val logger by Logger.delegate(this::class.java)
 
-    data class WebDavDirTreeNode(
-        val current: String,
-        val parent: WebDavDirTreeNode?,
-        val isDir: Boolean,
-        val children: List<WebDavDirTreeNode>
-    ) {
-        private val logger by Logger.delegate(this::class.java)
+    // not recursive
+    fun searchDir(target: String) = dirCache.filter { it.current.contains(target) }
+    fun searchFile(fileName: String) = bookMetaDataLs.filter { it.name.contains(fileName) }
 
-        // will not remove the webdav domain
-        fun search(path: String): WebDavDirTreeNode? {
-//            logger.d("to search $path")
-            var nextDir: WebDavDirTreeNode? = null
-            var pathLs = path
-                .let { if (it.startsWith("/")) it.substring(1, it.length) else it }
-                .split("/")
-            try {
-                while (pathLs.isNotEmpty()) {
-                    nextDir = children.first {
-                        it.current == pathLs.first()
-                    }
-                    if (nextDir.current == pathLs.last()) break
-                    else {
-                        pathLs = pathLs.subList(1, pathLs.size)
+    suspend fun recursiveSearchDir(model: WebDavModel, target: String) =
+        recursiveSearch(model, target).first
+
+    suspend fun recursiveSearchFile(model: WebDavModel, target: String) =
+        recursiveSearch(model, target).second
+
+    suspend fun recursiveSearch(
+        model: WebDavModel,
+        target: String
+    ): Pair<List<WebDavDirNode>, List<BookMetaData>> {
+        val fileLs = mutableListOf<BookMetaData>()
+        val dirLs = mutableListOf<WebDavDirNode>()
+        val pendingNodes = mutableListOf<WebDavCacheData>()
+
+        dirLs.addAll(searchDir(target))
+        fileLs.addAll(searchFile(target))
+        pendingNodes.add(this)
+        while (pendingNodes.isNotEmpty()) {
+            val node = pendingNodes.removeFirst()
+            node.dirCache.forEach {
+                getWebDavDirContentList(
+                    if (it.current == "/" && it.relativePath == null)
+                        model.url
+                    else
+                        "${model.url}${it.relativePath ?: ""}/${it.current}",
+                    model.loginId,
+                    model.password,
+                ) { ls ->
+                    ls.forEach {
+                        if (!it.isDir && it.name.contains(target)) {
+                            fileLs.add(BookMetaData(
+                                name = it.name,
+                                fileType = it.contentType?.run { "$type/$subtype" } ?: "text/plain",
+                                fullUrl = it.fullUrl,
+                                relativePath = it.fullUrl
+                                    .replace(model.url, "")
+                                    .replace(it.name, "")
+                                    .removeSuffix("/"),
+                                lastUpdated = it.lastModifiedDateTime,
+                                fileSize = it.fileSize
+                            ))
+                        }
+                        if (it.isDir) {
+                            if (it.name.contains(target))
+                                dirLs.add(
+                                    WebDavDirNode(
+                                        it.name,
+                                        it.fullUrl.replace(model.url, "")
+                                            .replace(it.name, "")
+                                            .removeSuffix("/"),
+                                        listOf(),
+                                        it.lastModifiedDateTime,
+                                        it.fullUrl
+                                    )
+                                )
+                            pendingNodes.add(
+                                Json.decodeFromString(
+                                    getFileFromWebDav(
+                                        "${it.fullUrl}/$BOOK_METADATA_CONFIG_FILENAME",
+                                        model.loginId,
+                                        model.password
+                                    )!!.decodeToString()
+                                )
+                            )
+                        }
                     }
                 }
-            } catch (_: NoSuchElementException) {
-
             }
-            return nextDir
         }
 
-        fun getWholeParentPath(): String {
-            val ret = mutableListOf<String>()
-            var _parent = parent
-            while (_parent != null) {
-                ret.add(_parent.current)
-                _parent = _parent.parent
-            }
-            return ret.reversed().joinToString("/")
-        }
-
-        fun toContentData(baseUrl: String) = run {
-            val mimeType: MediaType?
-            if (isDir) {
-                mimeType = null
-            } else {
-                val fileExt = current.split(".").last()
-                mimeType = try {
-                    fallbackMimeTypeMapping(fileExt).toMediaType()
-                } catch (e: RuntimeException) {
-                    null
-                }
-            }
-            DirectoryViewModel.ContentData(
-                "$baseUrl${getWholeParentPath()}${current}",
-                current,
-                LocalDateTime.now(),
-                LocalDateTime.now(),
-                mimeType,
-                0L
-            )
-        }
+        return dirLs to fileLs
     }
 
-    fun dirToTree(baseUrl: String): WebDavDirTreeNode? {
-        // dir first
-        val dirNodeList = dirCache.map {
-            (it.relativePath to it.children) to
-                    WebDavDirTreeNode(it.current, null, true, mutableListOf())
-        }.toMutableList()
-        if (dirNodeList.size == 0) return null
+    suspend fun asyncRecursiveSearch(
+        ctx: Context,
+        model: WebDavModel,
+        target: String,
+        intermediateResultConsumer: (Pair<List<WebDavDirNode>, List<BookMetaData>>) -> Unit,
+        doneCb: () -> Unit = {}
+    ) {
+        val fileLs = mutableListOf<BookMetaData>()
+        val dirLs = mutableListOf<WebDavDirNode>()
+        val pendingNodes = mutableListOf<WebDavCacheData>()
 
-        for (i in dirNodeList.indices) {
-            val currentNode = dirNodeList[i]
-            val parentIdx = dirNodeList
-                .indexOfFirst {
-                    if (currentNode.first.first == "/" || currentNode.first.first == null)
-                        currentNode.first.first == it.second.current
-                    else {
-                        val parentPath = currentNode.first.first!!.split("/").last()
-                        parentPath == it.second.current
-                    }
-                }
-            if (parentIdx != -1) {
-                dirNodeList[i] = currentNode.copy(
-                    currentNode.first,
-                    currentNode.second.copy(parent = dirNodeList[parentIdx].second)
+        dirLs.addAll(searchDir(target))
+        fileLs.addAll(searchFile(target))
+        pendingNodes.add(this)
+        while (pendingNodes.isNotEmpty()) {
+            val node = pendingNodes.removeFirst()
+            node.dirCache.forEach {
+                val data = ctx.getWebDavCache(
+                    model.uuid,
+                    it.fullUrl.replace(model.url, "")
                 )
-                (dirNodeList[parentIdx].second.children as MutableList).add(dirNodeList[i].second)
+                if (data == null) return
+                data.bookMetaDataLs.forEach { book ->
+                    if (book.name.contains(target))
+                        fileLs.add(book)
+                }
+                data.dirCache.forEach { dir ->
+                    if (dir.current.contains(target))
+                        dirLs.add(it)
+                    ctx.getWebDavCache(
+                        model.uuid,
+                        dir.fullUrl.replace(model.url, "")
+                    )?.let(pendingNodes::add)
+                }
+                intermediateResultConsumer(dirLs to fileLs)
+                dirLs.clear()
+                fileLs.clear()
             }
         }
-        dirNodeList.filter { it.second.parent == null && it.first.first != null }
-            .forEach { logger.w("dir ${it.second.current} cannot find relative path ${it.first.first}") }
 
-        // book then
-        bookMetaDataLs
-            .forEach { book ->
-                val bookNode = WebDavDirTreeNode(book.name, null, false, listOf())
-                val parent = book.fullUrl
-                    .replace(baseUrl, "")
-                    .split("/")
-                    .let { it[it.size - 2] }
-                    .ifEmpty { "/" }
-                val parentIdx = dirNodeList
-                    .indexOfFirst { it.second.current == parent }
-                if (parentIdx != -1) {
-                    val node = dirNodeList[parentIdx]
-                    (node.second.children as MutableList).add(bookNode)
-                } else {
-                    logger.w("book ${book.name} cannot find parent $parent")
-                }
-            }
-        return dirNodeList
-            .map { it.second }
-            .find { it.current == "/" }!!
+        doneCb()
     }
 
     fun sorted() = WebDavCacheData(

@@ -13,6 +13,7 @@ data class WebDavDirNode(
     val children: List<String> = listOf(),
     @Serializable(with = LocalDateTimeSerializer::class)
     val lastUpdated: LocalDateTime,
+    val fullUrl: String,
 ) {
     companion object {
         fun fromJson(json: String): WebDavDirNode {
@@ -21,7 +22,8 @@ data class WebDavDirNode(
                 current = node.current,
                 relativePath = node.relativePath,
                 children = node.children,
-                lastUpdated = node.lastUpdated
+                lastUpdated = node.lastUpdated,
+                fullUrl = node.fullUrl
             )
         }
     }
@@ -32,7 +34,8 @@ data class WebDavDirNode(
                 current = current,
                 relativePath = relativePath,
                 children = children,
-                lastUpdated = lastUpdated
+                lastUpdated = lastUpdated,
+                fullUrl = fullUrl
             )
         )
     }

@@ -21,6 +21,7 @@ data class BookMetaData(
     val bookmark: List<Pair<String, Double>> = listOf(),
     @Serializable(with = LocalDateTimeSerializer::class)
     val lastUpdated: LocalDateTime,
+    val fileSize: Long,
 ) {
     companion object {
         const val NOT_FILLED = "NOT FILLED"

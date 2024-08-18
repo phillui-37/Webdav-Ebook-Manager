@@ -39,7 +39,7 @@ fun getWebDavDirContentList(
     password: String,
     contentListSetter: (List<DirectoryViewModel.ContentData>) -> Unit
 ) {
-    logger.d("get '$url' content")
+    logger.d("[getWebDavDirContentList] get '$url' content")
     val collection = getWebDavCollection(url, loginId, password)
     val properties = arrayOf(
         DisplayName.NAME,
@@ -167,6 +167,7 @@ fun getFileFromWebDav(
     loginId: String,
     password: String,
 ) = try {
+    logger.d("[getFileFromWebDav] $fullUrl")
     val collection = getWebDavCollection(fullUrl, loginId, password)
     var result: ByteArray? = null
     collection.get(accept = "/", headers = null) { response ->

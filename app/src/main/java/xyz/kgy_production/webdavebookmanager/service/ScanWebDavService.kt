@@ -20,6 +20,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -43,6 +44,8 @@ import xyz.kgy_production.webdavebookmanager.util.isNetworkAvailable
 import xyz.kgy_production.webdavebookmanager.util.saveWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import javax.inject.Inject
@@ -260,7 +263,7 @@ class ScanWebDavService : JobService() {
                 } catch (e: NoSuchElementException) {
                     continue
                 } finally {
-                    delay(500)
+                    delay(1000)
                     isNotEmpty = pendingMutex.withLock { pendingCheckingList.size != 0 }
                 }
             }
@@ -289,15 +292,18 @@ class ScanWebDavService : JobService() {
         }
 
         val currentPath = param.url.replace(baseUrl, "").split("/")
+        val relativePath = when (currentPath.size) {
+            1 -> null
+            2 -> "/"
+            else -> currentPath.subList(0, currentPath.size - 1).joinToString("/")
+        }?.removeSuffix("/")
+        val name = currentPath.last().ifEmpty { "/" }
         val dirCache = WebDavDirNode(
-            currentPath.last().ifEmpty { "/" },
-            when (currentPath.size) {
-                1 -> null
-                2 -> "/"
-                else -> currentPath.subList(0, currentPath.size - 1).joinToString("/")
-            },
+            name,
+            relativePath ?: "",
             ls.map { it.fullUrl.split("/").last() },
             LocalDateTime.now(),
+            "${webDavData.url}${relativePath ?: ""}/$name"
         )
         dirCacheList.add(dirCache)
 
@@ -335,13 +341,28 @@ class ScanWebDavService : JobService() {
         )
 
         // save the conf
-        writeDataToWebDav(
-            Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs).sorted()),
-            BOOK_METADATA_CONFIG_FILENAME,
-            param.url,
-            webDavData.loginId,
-            webDavData.password
-        )
+        var done = false
+        var count = 0
+        while (!done) {
+            try {
+                writeDataToWebDav(
+                    Json.encodeToString(WebDavCacheData(dirCacheList, bookMetaDataLs).sorted()),
+                    BOOK_METADATA_CONFIG_FILENAME,
+                    param.url,
+                    webDavData.loginId,
+                    webDavData.password
+                )
+                done = true
+            } catch (e: Exception) {
+                when (e) {
+                    is SocketTimeoutException, is UnknownHostException -> {
+                        logger.w("[getCheckingList] save to ${param.url}, will retry then, retry count: ${++count}")
+                        delay(1000)
+                    }
+                    else -> throw e
+                }
+            }
+        }
         this@ScanWebDavService.saveWebDavCache(
             WebDavCacheData(dirCacheList, bookMetaDataLs).sorted(),
             webDavData.uuid,
@@ -357,14 +378,18 @@ class ScanWebDavService : JobService() {
         val ret = mutableListOf<BookMetaData>()
         books.forEach { book ->
             logger.d("Received book ${book.name} from queue")
-            val bookRelativePath = book.fullUrl.replace(baseUrl, "")
+            val bookRelativePath = book.fullUrl
+                .replace(baseUrl, "")
+                .replace(book.name, "")
+                .removeSuffix("/")
             ret.add(BookMetaData(
                 name = book.name,
                 fileType = book.contentType?.run { "$type/$subtype" }
                     ?: BookMetaData.NOT_AVAILABLE,
                 fullUrl = book.fullUrl,
                 relativePath = bookRelativePath,
-                lastUpdated = LocalDateTime.now()
+                lastUpdated = LocalDateTime.now(),
+                fileSize = book.fileSize
             ))
         }
         return ret

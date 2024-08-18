@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okio.withLock
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.ui.component.CommonTopBar
 import xyz.kgy_production.webdavebookmanager.ui.component.DirectoryTopBar
@@ -54,6 +55,7 @@ import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
 import xyz.kgy_production.webdavebookmanager.util.pipe
 import xyz.kgy_production.webdavebookmanager.util.urlDecode
+import java.util.concurrent.locks.ReentrantLock
 
 // TODO pull to refresh by network
 // TODO extract logic to viewmodel
@@ -77,7 +79,6 @@ fun DirectoryScreen(
     val contentList = viewModel.contentList.collectAsStateWithLifecycle()
     val isLoading = viewModel.isLoading.collectAsStateWithLifecycle()
     val rootConf = viewModel.rootConf.collectAsStateWithLifecycle()
-    val dirTree = viewModel.dirTree.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
     runBlocking(coroutineScope.coroutineContext) { viewModel.setWebDavModel(id) }
@@ -96,14 +97,15 @@ fun DirectoryScreen(
     }
     val byPassPatternFilter: (String) -> Boolean =
         { path -> re.all { !it.matches(path) } }
+    val lock = ReentrantLock()
 
     BackHandler { viewModel.goBack(onBack) }
 
-    LaunchedEffect(currentPath.value, dirTree.value) {
+    LaunchedEffect(currentPath.value) {
         logger.d("path updated: ${currentPath.value}")
         viewModel.setIsLoading(true)
         viewModel.emptyContentList()
-        coroutineScope.launch { viewModel.updateDirTree() }
+        coroutineScope.launch { viewModel.updateContentList() }
         viewModel.getRemoteContentList(ctx, coroutineScope, currentPath.value)
     }
 
@@ -114,7 +116,10 @@ fun DirectoryScreen(
     SideEffect {
         CoroutineScope(Dispatchers.IO).launch {
             viewModel.searchText.debounce(1000).collectLatest {
-                searchList = viewModel.onSearchUpdateSearchList(it)
+                viewModel.onSearchUpdateSearchList(it, ctx) {
+                    logger.d("search list update, size: ${it?.size}")
+                    searchList = it
+                }
             }
         }
     }

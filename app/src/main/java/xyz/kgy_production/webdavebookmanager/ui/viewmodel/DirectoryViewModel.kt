@@ -15,13 +15,17 @@ import at.bitfire.dav4jvm.property.GetLastModified
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import xyz.kgy_production.webdavebookmanager.R
 import xyz.kgy_production.webdavebookmanager.data.model.BookMetaData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
@@ -45,6 +49,7 @@ import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 
@@ -100,6 +105,37 @@ class DirectoryViewModel @Inject constructor(
                 }
                 return result
             }
+
+            fun fromDirCache(cache: WebDavDirNode): ContentData {
+                return ContentData(
+                    cache.fullUrl,
+                    cache.current,
+                    cache.lastUpdated,
+                    cache.lastUpdated,
+                    null,
+                    0
+                )
+            }
+
+            fun fromBookMetaData(metaData: BookMetaData): ContentData {
+                return ContentData(
+                    metaData.fullUrl,
+                    metaData.name,
+                    metaData.lastUpdated,
+                    metaData.lastUpdated,
+                    metaData.fileType.toMediaType(),
+                    metaData.fileSize
+                )
+            }
+
+            fun fromCacheData(cacheData: WebDavCacheData): List<ContentData> {
+                val ret = mutableListOf<ContentData>()
+
+                cacheData.dirCache.map(::fromDirCache).let(ret::addAll)
+                cacheData.bookMetaDataLs.map(::fromBookMetaData).let(ret::addAll)
+
+                return ret
+            }
         }
     }
 
@@ -113,9 +149,6 @@ class DirectoryViewModel @Inject constructor(
     private val _rootConf = MutableStateFlow<WebDavCacheData?>(null)
     val rootConf: StateFlow<WebDavCacheData?>
         get() = _rootConf
-    private val _dirTree = MutableStateFlow<WebDavCacheData.WebDavDirTreeNode?>(null)
-    val dirTree: StateFlow<WebDavCacheData.WebDavDirTreeNode?>
-        get() = _dirTree
     private var initDone = false
     val isAtRoot: Boolean
         get() = _currentPath.value == model.url
@@ -128,6 +161,8 @@ class DirectoryViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean>
         get() = _isLoading
+
+    private val isSearching = AtomicBoolean(false)
 
     // db operation
     suspend fun setWebDavModel(id: Int) {
@@ -160,7 +195,6 @@ class DirectoryViewModel @Inject constructor(
 
         _rootConf.value?.let {
             coroutineScope.launch {
-                _dirTree.emit(it.dirToTree(model.url))
                 writeDataToWebDav(
                     Json.encodeToString(it.copy(lastUpdateTime = LocalDateTime.now())),
                     BOOK_METADATA_CONFIG_FILENAME,
@@ -173,32 +207,67 @@ class DirectoryViewModel @Inject constructor(
         }
     }
 
-    fun onSearchUpdateSearchList(text: String): List<ContentData>? {
+    suspend fun onSearchUpdateSearchList(
+        text: String,
+        ctx: Context,
+        searchListConsumer: (List<ContentData>?) -> Unit
+    ) {
+        if (isSearching.get()) return
+        isSearching.set(true)
         logger.d("[onSearchUpdateSearchList] $text")
-        if (text.isEmpty()) return null
+        if (text.isEmpty()) {
+            searchListConsumer(null)
+            isSearching.set(false)
+            return
+        }
+
         val pattern = Regex(".*${text.toLowerCase(Locale.current)}.*")
         val pendingCheckList = mutableListOf(*contentList.value.toTypedArray())
         val doneList = mutableListOf<String>()
         val _searchList = mutableListOf<ContentData>()
+
         while (pendingCheckList.isNotEmpty()) {
             val data = pendingCheckList.removeFirst()
             if (doneList.contains(data.fullUrl)) continue
-//            logger.d("search processing, remains: ${pendingCheckList.size}")
-//            logger.d("processing node $data")
             if (data.isDir) {
-                dirTree.value?.let { tree ->
-//                    logger.d("tree search")
-                    tree.search(data.fullUrl.replace(model.url, ""))
-                        ?.let {
-//                            logger.d("next layer")
-                            val parentPath =
-                                "${model.url}${it.getWholeParentPath()}${it.current}/"
-//                            logger.d("parent path: $parentPath")
-                            pendingCheckList.addAll(it.children.map {
-                                it.toContentData(parentPath)
-                            })
+                _isLoading.value = true
+                _rootConf.value
+                    ?.asyncRecursiveSearch(
+                        ctx, model, text,
+                        { (dirLs, fileLs) ->
+                            _searchList.addAll(
+                                dirLs.map {
+                                    ContentData(
+                                        "${model.url}${it.relativePath}/${it.current}",
+                                        it.current,
+                                        it.lastUpdated,
+                                        it.lastUpdated,
+                                        null,
+                                        0
+                                    )
+                                }
+                            )
+                            _searchList.addAll(
+                                fileLs.map {
+                                    ContentData(
+                                        it.fullUrl,
+                                        it.name,
+                                        it.lastUpdated,
+                                        it.lastUpdated,
+                                        it.fileType.toMediaType(),
+                                        it.fileSize
+                                    )
+                                }
+                            )
+                            _contentList.value = _searchList.sortedWith { t, t2 ->
+                                when {
+                                    t.isDir && !t2.isDir -> 1
+                                    !t.isDir && t2.isDir -> -1
+                                    else -> t.fullUrl.compareTo(t2.fullUrl)
+                                }
+                            }
                         }
-                }
+                    ) { _isLoading.value = false }
             }
             if (pattern.matches(data.name.toLowerCase(Locale.current))) {
                 logger.d("[onSearchUpdateSearchList] match record found, data: ${data.name}, ${data.fullUrl}")
@@ -206,7 +275,8 @@ class DirectoryViewModel @Inject constructor(
             }
             doneList.add(data.fullUrl)
         }
-        return _searchList
+        searchListConsumer(_searchList)
+        isSearching.set(false)
     }
 
     // biz logic op
@@ -216,20 +286,20 @@ class DirectoryViewModel @Inject constructor(
         ctx: Context,
         snackBarHostState: SnackbarHostState
     ) {
-        logger.d("[init] ${model.url}, ${_currentPath.value}")
+        logger.d("[init] ${model.url}, ${_currentPath.value}, $destUrl")
 
 //        if (model.url == _currentPath.value) return
 
         var remoteConf: WebDavCacheData? = null
         if (ctx.isNetworkAvailable()) {
             logger.d("[init] has network")
-            if (destUrl == model.url) {
+            if (destUrl != null) {
+                remoteConf = getDirCache(coroutineScope, destUrl)
+            } else {
                 remoteConf = firstTimeLaunchCheck(model, coroutineScope.coroutineContext) {
                     logger.d("[init] first time launch for ${model.url}")
                     execFirstTimeSetup(coroutineScope, snackBarHostState, ctx)
                 }
-            } else if (destUrl != null) {
-                remoteConf = getDirCache(coroutineScope, destUrl)
             }
         }
 
@@ -270,7 +340,6 @@ class DirectoryViewModel @Inject constructor(
 
         coroutineScope.launch {
             _rootConf.emit(oriConf)
-            _dirTree.emit(oriConf?.dirToTree(model.url))
             _currentPath.emit(destUrl ?: model.url)
             _isLoading.emit(false)
             initDone = true
@@ -291,28 +360,15 @@ class DirectoryViewModel @Inject constructor(
 
     fun isConfNotChanged() = !initDone || _rootConf.value == oriConf
 
-    suspend fun updateDirTree() {
+    suspend fun updateContentList() {
         logger.d("[updateDirTree]")
         if (rootConf.value == null) {
             logger.d("[updateDirTree] null root conf")
             return
         }
-        if (isAtRoot) {
-            logger.d("get root tree")
-            _contentList.emit(
-                dirTree.value?.children?.map { it.toContentData(model.url) } ?: listOf()
-            )
-        } else {
-            logger.d("get branch")
-            dirTree.value?.let { tree ->
-                val pathToSearch =
-                    currentPath.value.replace(model.url, "").ifEmpty { "/" }
-                tree.search(pathToSearch)?.let {
-                    logger.d("node found in tree")
-                    _contentList.emit(it.children.map { it.toContentData(model.url) })
-                }
-            }
-        }
+        _contentList.emit(
+            _rootConf.value?.let { ContentData.fromCacheData(it) } ?: listOf()
+        )
     }
 
     fun getRemoteContentList(ctx: Context, coroutineScope: CoroutineScope, path: String) {
@@ -471,11 +527,17 @@ class DirectoryViewModel @Inject constructor(
                 1 -> "/"
                 else -> paths.subList(0, paths.size - 2).joinToString("/")
                     .let { if (it == "") null else it }
-            }  
+            }
             val current = paths.last()
             if (contentData.isDir) {
                 // dir part
-                val dirNode = WebDavDirNode(current, relativePath, listOf(), LocalDateTime.now())
+                val dirNode = WebDavDirNode(
+                    current,
+                    relativePath,
+                    listOf(),
+                    LocalDateTime.now(),
+                    contentData.fullUrl
+                )
                 val existingNode =
                     dirCacheLs.find { it.current == current && it.relativePath == relativePath }
                 if (existingNode == null) newDirs.add(dirNode)
@@ -497,6 +559,7 @@ class DirectoryViewModel @Inject constructor(
                         fullUrl = contentData.fullUrl,
                         relativePath = relativePath ?: "/",
                         lastUpdated = LocalDateTime.now(),
+                        fileSize = contentData.fileSize
                     )
                     newBooks.add(metadata)
                 }
@@ -554,7 +617,11 @@ class DirectoryViewModel @Inject constructor(
         destUrl: String,
     ): WebDavCacheData? {
         return runBlocking(coroutineScope.coroutineContext) {
-            getFileFromWebDav(destUrl, model.loginId, model.password)
+            getFileFromWebDav(
+                "$destUrl/$BOOK_METADATA_CONFIG_FILENAME",
+                model.loginId,
+                model.password
+            )
                 ?.let { Json.decodeFromString(it.decodeToString()) }
         }
     }
