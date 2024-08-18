@@ -19,11 +19,8 @@ import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -47,8 +44,6 @@ import xyz.kgy_production.webdavebookmanager.util.urlDecode
 import xyz.kgy_production.webdavebookmanager.util.writeDataToWebDav
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -99,24 +94,15 @@ class ScanWebDavService : JobService() {
     }
 
     private lateinit var baseUrl: String
-    private val pendingCheckingQueue = MutableSharedFlow<GetCheckListParam>()
-    private val fileListQueue = MutableSharedFlow<DirectoryViewModel.ContentData>()
+    private val pendingCheckingList = mutableListOf<GetCheckListParam>()
+    private val doneCheckingList = mutableListOf<String>()
     private val bookMetaDataLs = mutableListOf<BookMetaData>()
-    private val bookMetaDataLsMutex = Mutex()
-    private val receiveFileCount = AtomicInteger(0)
-    private val doneFileCount = AtomicInteger(0)
     private val workerThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    private val dirDispatcher =
-        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2)
-            .asCoroutineDispatcher()
-    private val bookDispatcher =
-        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2)
-            .asCoroutineDispatcher()
+    private val pendingMutex = Mutex()
+    private val dirMutex = Mutex()
+    private val bookMutex = Mutex()
     private val byPassPatterns = mutableListOf<Regex>()
     private val dirCacheList = mutableListOf<WebDavDirNode>()
-    private var isNotDone = AtomicBoolean(true)
-    private var dirTask: Job? = null
-    private var fileTask: Job? = null
 
     override fun onStartJob(params: JobParameters?): Boolean {
         logger.i("Job start")
@@ -183,7 +169,11 @@ class ScanWebDavService : JobService() {
             ) {
                 return@with
             }
-            notify(NotificationChannelEnum.ScanWebDavService.id, noti)
+            notify(
+                NotificationChannelEnum.ScanWebDavService.tag,
+                NotificationChannelEnum.ScanWebDavService.id,
+                noti
+            )
         }
     }
 
@@ -208,7 +198,14 @@ class ScanWebDavService : JobService() {
     private fun checkAndRecoverNoti() {
         getSystemService(NotificationManager::class.java)
             .activeNotifications
-            .filter { it.id == NotificationChannelEnum.ScanWebDavService.id && it.tag == NotificationChannelEnum.ScanWebDavService.tag }
+            .filter {
+                if (it.packageName != packageName) {
+                    false
+                } else {
+                    it.id == NotificationChannelEnum.ScanWebDavService.id
+                            && it.tag == NotificationChannelEnum.ScanWebDavService.tag
+                }
+            }
             .ifEmpty {
                 postNoti(noti!!)
             }
@@ -222,9 +219,6 @@ class ScanWebDavService : JobService() {
             )
         )
             throw Err("'${webDavData.url}' not reachable")
-
-        dirTask = getDirScanJob().apply { start() }
-        fileTask = getBookMarshalJob(webDavData.url).apply { start() }
 
         MainActivity.keepScreenOn()
         logger.d("Start handling ${webDavData.url.urlDecode()}")
@@ -241,7 +235,7 @@ class ScanWebDavService : JobService() {
                 byPassPatterns.add(Regex(BOOK_METADATA_CONFIG_FILENAME))
             }
 
-        pendingCheckingQueue.emit(
+        pendingCheckingList.add(
             GetCheckListParam(
                 webDavData.url,
                 webDavData.loginId,
@@ -250,30 +244,32 @@ class ScanWebDavService : JobService() {
         )
 
         CoroutineScope(Dispatchers.IO).launch {
-            var fileCountSnapshot = 0
-            var sameFileCountCounter = 0
-            while (isNotDone.get()) {
+            var isNotEmpty = pendingMutex.withLock { pendingCheckingList.size != 0 }
+            var firstTime = true
+            while (isNotEmpty) {
                 checkAndRecoverNoti()
-                val doneFileCountNow = doneFileCount.get()
-                if (sameFileCountCounter >= 10 && doneFileCountNow == fileCountSnapshot)
-                    isNotDone.set(true)
-                else {
-                    logger.d(
-                        "File count now: $doneFileCountNow, file count before: $fileCountSnapshot, received file: ${receiveFileCount.get()}"
-                    )
-                    if (doneFileCountNow == fileCountSnapshot) {
-                        sameFileCountCounter++
-                    } else {
-                        sameFileCountCounter = 0
-                        fileCountSnapshot = doneFileCountNow
+                logger.d(
+                    "File count now: ${bookMetaDataLs.size}, pending list size: ${pendingCheckingList.size}"
+                )
+                try {
+                    val param = pendingMutex.withLock {
+                        pendingCheckingList.removeFirst()
                     }
-                    delay(1000) // check it every one second
+                    CoroutineScope(Dispatchers.IO).launch {
+                        updateCheckingList(param)
+                    }
+                    if (firstTime) {
+                        delay(2000)
+                        firstTime = false
+                    }
+                } catch (e: NoSuchElementException) {
+                    continue
+                } finally {
+                    delay(500)
+                    isNotEmpty = pendingMutex.withLock { pendingCheckingList.size != 0 }
                 }
             }
-            isNotDone.set(true)
-            logger.d(
-                "file count $fileCountSnapshot stable now, task can be finished"
-            )
+            logger.d("task done")
 
             // save the conf
             writeDataToWebDav(
@@ -316,39 +312,38 @@ class ScanWebDavService : JobService() {
             ls.map { it.fullUrl.split("/").last() },
             LocalDateTime.now(),
         )
-        dirCacheList.add(dirCache)
+        dirMutex.withLock { dirCacheList.add(dirCache) }
 
-        ls = ls.filter { item ->
-            byPassPatterns.all {
-                !it.matches(item.fullUrl.urlDecode())
+        ls = pendingMutex.withLock {
+            ls.filter { item ->
+                byPassPatterns.all {
+                    !it.matches(item.fullUrl.urlDecode())
+                } && !doneCheckingList.contains(item.fullUrl)
             }
         }
 
         val folders = ls.filter { it.isDir }
         logger.d("push ${folders.size} dirs to queue")
-        CoroutineScope(Dispatchers.IO).launch {
-            folders.forEach {
-                pendingCheckingQueue.emit(
+        pendingMutex.withLock {
+            folders
+                .map {
+                    doneCheckingList.add(it.fullUrl)
                     GetCheckListParam(
                         it.fullUrl,
                         param.loginId,
                         param.password
                     )
-                )
-            }
+                }
+                .also(pendingCheckingList::addAll)
         }
 
-        val files = bookMetaDataLsMutex.withLock {
+        val files = bookMutex.withLock {
             ls.filter {
                 !it.isDir && bookMetaDataLs.find { book -> it.name == book.name && it.fullUrl == book.fullUrl } == null
             }
         }
         logger.d("push ${files.size} files to queue")
-        CoroutineScope(Dispatchers.IO).launch {
-            files.forEach {
-                fileListQueue.emit(it)
-            }
-        }
+        marshalBook(baseUrl, files)
 
         logger.d(
             "[getCheckingList] '${
@@ -357,42 +352,27 @@ class ScanWebDavService : JobService() {
         )
     }
 
-    private fun getDirScanJob(): Job {
-        return CoroutineScope(dirDispatcher).launch {
-            logger.d("execute getDirScanJob")
-            pendingCheckingQueue.collect { dirUrl ->
-                logger.d("Received url ${dirUrl.url} from queue")
-                CoroutineScope(dirDispatcher).launch {
-                    updateCheckingList(dirUrl)
-                }
+    private suspend fun marshalBook(baseUrl: String, books: List<DirectoryViewModel.ContentData>) {
+        logger.d("execute getBookMarshalJob")
+        books.forEach { book ->
+            logger.d("Received book ${book.name} from queue")
+            val bookRelativePath = book.fullUrl.replace(baseUrl, "")
+            val dupBook = bookMutex.withLock {
+                bookMetaDataLs.find { it.name == book.name && it.relativePath == bookRelativePath }
             }
-        }
-    }
-
-    private fun getBookMarshalJob(baseUrl: String): Job {
-        return CoroutineScope(bookDispatcher).launch {
-            logger.d("execute getBookMarshalJob")
-            fileListQueue.collect { book ->
-                logger.d("Received book ${book.name} from queue")
-                bookMetaDataLsMutex.withLock {
-                    receiveFileCount.addAndGet(1)
-                    val bookRelativePath = book.fullUrl.replace(baseUrl, "")
-                    val dupBook =
-                        bookMetaDataLs.find { it.name == book.name && it.relativePath == bookRelativePath }
-                    if (dupBook == null) {
-                        bookMetaDataLs.add(BookMetaData(
-                            name = book.name,
-                            fileType = book.contentType?.run { "$type/$subtype" }
-                                ?: BookMetaData.NOT_AVAILABLE,
-                            fullUrl = book.fullUrl,
-                            relativePath = book.fullUrl.replace(baseUrl, ""),
-                            lastUpdated = LocalDateTime.now()
-                        ))
-                        doneFileCount.addAndGet(1)
-                    } else {
-                        logger.d("duplicate book:\nreceived->$book\nexists->$dupBook$")
-                    }
+            if (dupBook == null) {
+                bookMutex.withLock {
+                    bookMetaDataLs.add(BookMetaData(
+                        name = book.name,
+                        fileType = book.contentType?.run { "$type/$subtype" }
+                            ?: BookMetaData.NOT_AVAILABLE,
+                        fullUrl = book.fullUrl,
+                        relativePath = book.fullUrl.replace(baseUrl, ""),
+                        lastUpdated = LocalDateTime.now()
+                    ))
                 }
+            } else {
+                logger.d("duplicate book:\nreceived->$book\nexists->$dupBook$")
             }
         }
     }
@@ -401,11 +381,7 @@ class ScanWebDavService : JobService() {
         reason: String,
         cancelNotiAction: () -> Unit
     ) {
-        dirTask?.cancel(reason)
-        fileTask?.cancel(reason)
         cancelNotiAction()
-        bookDispatcher.close()
-        dirDispatcher.close()
         stopSelf()
         MainActivity.letScreenRest()
     }
