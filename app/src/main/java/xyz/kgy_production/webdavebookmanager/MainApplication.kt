@@ -32,12 +32,12 @@ class MainApplication : Application() {
         val url = resources.getString(R.string.webdavUrl)
         val loginId = resources.getString(R.string.webdavLoginId)
         val password = resources.getString(R.string.webdavLoginPassword)
-        val encodedUrl = url.urlEncode()
+        val encodedUrl = if (url.isNotEmpty()) url.urlEncode() else null
 
         if (arrayOf(url, loginId, password).all { it.isNotEmpty() }) {
             logger.d("found testing webdav entry, url:$url, loginId:$loginId")
             CoroutineScope(Dispatchers.IO).launch {
-                if (webDavRepository.getEntryByUrlAndLoginId(encodedUrl, loginId) == null) {
+                if (encodedUrl != null && webDavRepository.getEntryByUrlAndLoginId(encodedUrl, loginId) == null) {
                     logger.d("appending testing webdav entry")
                     webDavRepository.createEntry(
                         "Dev Server",
