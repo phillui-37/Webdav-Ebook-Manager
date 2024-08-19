@@ -179,3 +179,18 @@ fun getFileFromWebDav(
     logger.d("[getFileFromWebDav] file $fullUrl not exists")
     null
 }
+
+fun searchWebDav(
+    fullUrl: String,
+    loginId: String,
+    password: String,
+    searchText: String,
+) = try {
+    // TODO
+    logger.d("[searchWebDav] $searchText")
+    val collection = getWebDavCollection(fullUrl, loginId, password)
+    val result: ByteArray? = null
+    collection.search(searchText) { response, hrefRel ->
+//        if ()
+    }
+}
