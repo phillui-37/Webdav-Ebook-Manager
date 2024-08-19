@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
+import xyz.kgy_production.webdavebookmanager.MainActivity
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
@@ -63,31 +64,53 @@ class HomeViewModel @Inject constructor(
 
     suspend fun downloadRemoteCache(ctx: Context, model: WebDavModel) {
         logger.d("[downloadRemoteCache] start")
-        val pendingList = mutableListOf(model.url)
-        val dirLs = mutableListOf<DirectoryViewModel.ContentData>()
+        MainActivity.keepScreenOn()
+        val pendingList = mutableListOf<String>()
+        val doneList = mutableListOf<String>()
+
+        pendingList.add(model.url)
         while (pendingList.isNotEmpty()) {
             val url = pendingList.removeFirst()
+            if (doneList.contains(url)) continue
+            logger.d("handling $url")
+            val dirLs = mutableListOf<DirectoryViewModel.ContentData>()
             getWebDavDirContentList(
                 url,
                 model.loginId,
                 model.password
-            ) { dirLs.addAll(it) }
-            dirLs.filter { it.isDir }
-                .forEach { pendingList.add(it.fullUrl) }
-            val cache = getFileFromWebDav(
-                "$url/$BOOK_METADATA_CONFIG_FILENAME",
-                model.loginId,
-                model.password
-            )?.let {
-                Json.decodeFromString<WebDavCacheData>(it.decodeToString())
+            ) {
+                dirLs.addAll(it)
             }
-            if (cache != null)
-                ctx.saveWebDavCache(
-                    cache,
-                    model.uuid,
-                    url.replace(model.url, "").removePrefix("/")
-                )
+            dirLs.filter { it.isDir }
+                .also {
+                    logger.d("add ${it.size} to pending")
+                    pendingList.addAll(it.filter { !doneList.contains(it.fullUrl) }
+                        .map { it.fullUrl })
+                }
+            try {
+                val cache = getFileFromWebDav(
+                    "$url/$BOOK_METADATA_CONFIG_FILENAME",
+                    model.loginId,
+                    model.password
+                )?.let {
+                    Json.decodeFromString<WebDavCacheData>(it.decodeToString())
+                }
+                logger.d("got cache data of $url, isNull: ${cache == null}")
+                if (cache != null)
+                    ctx.saveWebDavCache(
+                        cache,
+                        model.uuid,
+                        url.replace(model.url, "").removePrefix("/")
+                    )
+                doneList.add(url)
+                logger.d("finished ${doneList.size}")
+            } catch (e: Exception) {
+                logger.e("[downloadRemoteCache] error", e)
+                pendingList.add(url)
+            }
         }
+
+        MainActivity.letScreenRest()
         logger.d("[downloadRemoteCache] done")
     }
 }
