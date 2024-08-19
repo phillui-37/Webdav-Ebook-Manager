@@ -85,7 +85,7 @@ class HomeViewModel @Inject constructor(
                 ctx.saveWebDavCache(
                     cache,
                     model.uuid,
-                    url.replace(model.url, "")
+                    url.replace(model.url, "").removePrefix("/")
                 )
         }
         logger.d("[downloadRemoteCache] done")
