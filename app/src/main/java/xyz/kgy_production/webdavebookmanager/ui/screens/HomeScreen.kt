@@ -85,6 +85,7 @@ private data class MenuData(
     val toWebdavDetail: () -> Unit,
     val toFullScanDir: () -> Unit,
     val removeShareCache: () -> Unit,
+    val downloadRemoteCacheData: () -> Unit,
     val finalCb: () -> Unit,
 )
 
@@ -146,16 +147,7 @@ fun HomeScreen(
     }
 
     menuData?.let { data ->
-        MenuDialog(
-            MenuData(
-                onCancel = data.onCancel,
-                onShowDeleteDialog = data.onShowDeleteDialog,
-                toWebdavDetail = data.toWebdavDetail,
-                toFullScanDir = data.toFullScanDir,
-                removeShareCache = data.removeShareCache,
-                finalCb = data.finalCb,
-            )
-        )
+        MenuDialog(data)
     }
 
     fun toDisplaySnackBar(message: String) {
@@ -222,6 +214,13 @@ fun HomeScreen(
                                 removeShareCache = {
                                     ctx.removeAllShareFiles()
                                 },
+                                downloadRemoteCacheData = {
+                                    coroutineScope.launch {
+                                        isLoading = true
+                                        viewModel.downloadRemoteCache(ctx, model)
+                                        isLoading = false
+                                    }
+                                },
                                 finalCb = { menuData = null }
                             )
                         },
@@ -281,6 +280,9 @@ private fun MenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = "Scan whole directory to build index") // TODO i18n
+                }
+                TextButton(onClick = data.downloadRemoteCacheData pipe data.finalCb) {
+                    Text(text = "Download remote index data") // TODO i18n
                 }
                 TextButton(onClick = data.removeShareCache pipe data.finalCb) {
                     Text(text = "Clear all cache files") // TODO i18n
@@ -471,6 +473,7 @@ fun MenuDialogPreview() {
             toWebdavDetail = { },
             toFullScanDir = {},
             removeShareCache = {},
+            downloadRemoteCacheData = {},
             finalCb = { },
         )
     )

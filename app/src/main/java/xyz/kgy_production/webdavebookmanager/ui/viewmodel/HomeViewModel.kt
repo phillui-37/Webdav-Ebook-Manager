@@ -6,16 +6,22 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.json.Json
+import xyz.kgy_production.webdavebookmanager.data.model.WebDavCacheData
 import xyz.kgy_production.webdavebookmanager.data.model.WebDavModel
 import xyz.kgy_production.webdavebookmanager.data.repository.WebDavRepository
+import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
 import xyz.kgy_production.webdavebookmanager.util.Logger
+import xyz.kgy_production.webdavebookmanager.util.getFileFromWebDav
+import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.removeWebDavCache
+import xyz.kgy_production.webdavebookmanager.util.saveWebDavCache
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val webDavRepository: WebDavRepository,
-): ViewModel() {
+) : ViewModel() {
     private val logger by Logger.delegate(this::class.java)
 
     private var webdavDomainList: List<WebDavModel> = listOf()
@@ -53,5 +59,35 @@ class HomeViewModel @Inject constructor(
                 it.name.contains(filterText) || it.url.contains(filterText)
             }
         )
+    }
+
+    suspend fun downloadRemoteCache(ctx: Context, model: WebDavModel) {
+        logger.d("[downloadRemoteCache] start")
+        val pendingList = mutableListOf(model.url)
+        val dirLs = mutableListOf<DirectoryViewModel.ContentData>()
+        while (pendingList.isNotEmpty()) {
+            val url = pendingList.removeFirst()
+            getWebDavDirContentList(
+                url,
+                model.loginId,
+                model.password
+            ) { dirLs.addAll(it) }
+            dirLs.filter { it.isDir }
+                .forEach { pendingList.add(it.fullUrl) }
+            val cache = getFileFromWebDav(
+                "$url/$BOOK_METADATA_CONFIG_FILENAME",
+                model.loginId,
+                model.password
+            )?.let {
+                Json.decodeFromString<WebDavCacheData>(it.decodeToString())
+            }
+            if (cache != null)
+                ctx.saveWebDavCache(
+                    cache,
+                    model.uuid,
+                    url.replace(model.url, "")
+                )
+        }
+        logger.d("[downloadRemoteCache] done")
     }
 }
