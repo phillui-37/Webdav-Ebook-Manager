@@ -15,13 +15,10 @@ import at.bitfire.dav4jvm.property.GetLastModified
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType
@@ -235,6 +232,7 @@ class DirectoryViewModel @Inject constructor(
                     ?.asyncRecursiveSearch(
                         ctx, model, text,
                         { (dirLs, fileLs) ->
+                            // todo to check duplicate entry, use latest updated one
                             _searchList.addAll(
                                 dirLs.map {
                                     ContentData(
@@ -357,8 +355,6 @@ class DirectoryViewModel @Inject constructor(
                 .joinToString("/")
         )
     }
-
-    fun isConfNotChanged() = !initDone || _rootConf.value == oriConf
 
     suspend fun updateContentList() {
         logger.d("[updateDirTree]")
@@ -625,4 +621,6 @@ class DirectoryViewModel @Inject constructor(
                 ?.let { Json.decodeFromString(it.decodeToString()) }
         }
     }
+
+    private fun isConfNotChanged() = !initDone || _rootConf.value == oriConf
 }

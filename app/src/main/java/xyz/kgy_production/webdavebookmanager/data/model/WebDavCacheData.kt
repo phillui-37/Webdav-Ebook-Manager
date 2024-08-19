@@ -1,6 +1,9 @@
 package xyz.kgy_production.webdavebookmanager.data.model
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import xyz.kgy_production.webdavebookmanager.util.BOOK_METADATA_CONFIG_FILENAME
@@ -10,6 +13,7 @@ import xyz.kgy_production.webdavebookmanager.util.getWebDavCache
 import xyz.kgy_production.webdavebookmanager.util.getWebDavDirContentList
 import xyz.kgy_production.webdavebookmanager.util.serializer.LocalDateTimeSerializer
 import java.time.LocalDateTime
+import java.util.concurrent.ConcurrentLinkedQueue
 
 @Serializable
 data class WebDavCacheData(
@@ -97,6 +101,38 @@ data class WebDavCacheData(
         return dirLs to fileLs
     }
 
+    private fun localSearch(
+        ctx: Context,
+        model: WebDavModel,
+        target: String,
+        dirNode: WebDavDirNode,
+        addPendingNodes: (WebDavCacheData) -> Unit,
+        intermediateResultConsumer: (Pair<List<WebDavDirNode>, List<BookMetaData>>) -> Unit,
+    ) {
+        val fileLs = mutableListOf<BookMetaData>()
+        val dirLs = mutableListOf<WebDavDirNode>()
+        val data = ctx.getWebDavCache(
+            model.uuid,
+            dirNode.fullUrl.replace(model.url, "")
+        )
+        if (data == null) return
+        data.bookMetaDataLs.forEach { book ->
+            if (book.name.contains(target))
+                fileLs.add(book)
+        }
+        data.dirCache.forEach { dir ->
+            if (dir.current.contains(target))
+                dirLs.add(dirNode)
+            ctx.getWebDavCache(
+                model.uuid,
+                dir.fullUrl.replace(model.url, "")
+            )?.let(addPendingNodes)
+        }
+        intermediateResultConsumer(dirLs to fileLs)
+        dirLs.clear()
+        fileLs.clear()
+    }
+
     suspend fun asyncRecursiveSearch(
         ctx: Context,
         model: WebDavModel,
@@ -104,38 +140,26 @@ data class WebDavCacheData(
         intermediateResultConsumer: (Pair<List<WebDavDirNode>, List<BookMetaData>>) -> Unit,
         doneCb: () -> Unit = {}
     ) {
-        val fileLs = mutableListOf<BookMetaData>()
-        val dirLs = mutableListOf<WebDavDirNode>()
-        val pendingNodes = mutableListOf<WebDavCacheData>()
-
-        dirLs.addAll(searchDir(target))
-        fileLs.addAll(searchFile(target))
-        pendingNodes.add(this)
-        while (pendingNodes.isNotEmpty()) {
-            val node = pendingNodes.removeFirst()
-            node.dirCache.forEach {
-                val data = ctx.getWebDavCache(
-                    model.uuid,
-                    it.fullUrl.replace(model.url, "")
-                )
-                if (data == null) return
-                data.bookMetaDataLs.forEach { book ->
-                    if (book.name.contains(target))
-                        fileLs.add(book)
+        intermediateResultConsumer(searchDir(target) to searchFile(target))
+        // local
+        CoroutineScope(Dispatchers.IO).launch {
+            val pendingNodes = ConcurrentLinkedQueue<WebDavCacheData>()
+            pendingNodes.add(this@WebDavCacheData)
+            while (pendingNodes.isNotEmpty()) {
+                pendingNodes.poll()?.dirCache?.forEach {
+                    // local search
+                    localSearch(
+                        ctx,
+                        model,
+                        target,
+                        it,
+                        pendingNodes::add,
+                        intermediateResultConsumer
+                    )
                 }
-                data.dirCache.forEach { dir ->
-                    if (dir.current.contains(target))
-                        dirLs.add(it)
-                    ctx.getWebDavCache(
-                        model.uuid,
-                        dir.fullUrl.replace(model.url, "")
-                    )?.let(pendingNodes::add)
-                }
-                intermediateResultConsumer(dirLs to fileLs)
-                dirLs.clear()
-                fileLs.clear()
             }
         }
+        // todo remote
 
         doneCb()
     }
